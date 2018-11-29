@@ -34,7 +34,7 @@ if (NDIF>0) {
   #Make even
   if ( NDIF%%2==1 ) { print("odd") ; NDIF=NDIF-1 }
   #sample DE genes
-  DE_LIST<-sample(rownames(df2) , NDIF)
+  DE_LIST<-sample(rownames(df) , NDIF)
   #split list in half
   UP_DE<-sample(DE_LIST,length(DE_LIST)/2)
   DN_DE<-setdiff(DE_LIST,UP_DE)
@@ -236,6 +236,27 @@ res7<-agg_edger(a,5,10000000,2,0,0,10)
 res_0de <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4,"v1"=res5,"v1.5"=res6,"v2"=res7)
 lapply( res_0de , colMeans)
 
+sum_0de<-t(matrix(unlist(lapply( res_0de , colMeans)),nrow=4))
+colnames(sum_0de)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(sum_0de)=c("v0","v0.2","v0.4","v0.6","v0.8","v1","v1.5","v2")
+
+
+
+res0<-agg_edger(a,5,10000000,0,0.05,1,10)
+res1<-agg_edger(a,5,10000000,0.2,0.05,1,10)
+res2<-agg_edger(a,5,10000000,0.4,0.05,1,10)
+res3<-agg_edger(a,5,10000000,0.6,0.05,1,10)
+res4<-agg_edger(a,5,10000000,0.8,0.05,1,10)
+res5<-agg_edger(a,5,10000000,1,0.05,1,10)
+res6<-agg_edger(a,5,10000000,1.5,0.05,1,10)
+res7<-agg_edger(a,5,10000000,2,0.05,1,10)
+res_1de <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4,"v1"=res5,"v1.5"=res6,"v2"=res7)
+lapply( res_1de , colMeans)
+
+sum_1de<-t(matrix(unlist(lapply( res_1de , colMeans)),nrow=4))
+colnames(sum_1de)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(sum_1de)=c("v0","v0.2","v0.4","v0.6","v0.8","v1","v1.5","v2")
+
 res0<-agg_edger(a,5,10000000,0,0.1,1,10)
 res1<-agg_edger(a,5,10000000,0.2,0.1,1,10)
 res2<-agg_edger(a,5,10000000,0.4,0.1,1,10)
@@ -244,8 +265,29 @@ res4<-agg_edger(a,5,10000000,0.8,0.1,1,10)
 res5<-agg_edger(a,5,10000000,1,0.1,1,10)
 res6<-agg_edger(a,5,10000000,1.5,0.1,1,10)
 res7<-agg_edger(a,5,10000000,2,0.1,1,10)
-res_1de <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4,"v1"=res5,"v1.5"=res6,"v2"=res7)
+res_2de <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4,"v1"=res5,"v1.5"=res6,"v2"=res7)
 lapply( res_1de , colMeans)
+
+sum_2de<-t(matrix(unlist(lapply( res_2de , colMeans)),nrow=4))
+colnames(sum_2de)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(sum_2de)=c("v0","v0.2","v0.4","v0.6","v0.8","v1","v1.5","v2")
+
+
+res0<-agg_edger(a,5,10000000,0,0.25,1,10)
+res1<-agg_edger(a,5,10000000,0.2,0.25,1,10)
+res2<-agg_edger(a,5,10000000,0.4,0.25,1,10)
+res3<-agg_edger(a,5,10000000,0.6,0.25,1,10)
+res4<-agg_edger(a,5,10000000,0.8,0.25,1,10)
+res5<-agg_edger(a,5,10000000,1,0.25,1,10)
+res6<-agg_edger(a,5,10000000,1.5,0.25,1,10)
+res7<-agg_edger(a,5,10000000,2,0.25,1,10)
+res_3de <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4,"v1"=res5,"v1.5"=res6,"v2"=res7)
+lapply( res_2de , colMeans)
+
+sum_3de<-t(matrix(unlist(lapply( res_3de , colMeans)),nrow=4))
+colnames(sum_3de)=c("true_pos","false_pos","true_neg","false_neg")
+colnames(sum_3de)=c("v0","v0.2","v0.4","v0.6","v0.8","v1","v1.5","v2")
+
 
 #
 
