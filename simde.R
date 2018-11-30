@@ -65,7 +65,7 @@ colnames(controls)=paste0( "ctrl_" ,1:ncol(controls) )
 treatments<-round(df2[,EVEN_COLS]*df2$FC)
 colnames(treatments)=paste0( "trt_" ,1:ncol(treatments) )
 x<-cbind(controls,treatments)
-rownames(x)=rownames(df)
+rownames(x)=rownames(df2)
 #filter out genes that are not expressed
 x<- x[which(rowSums(x)/ncol(x)>10),]
 UP_DE<-intersect(UP_DE,rownames(x))
