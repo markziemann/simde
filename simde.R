@@ -10,9 +10,7 @@ a<-read.table("start_data/ERR2539161/ERR2539161.se.tsv")
 ########################################
 #inputs=(a,N_REPS,SUM_COUNT,
 simrna<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC) {
-
-
-N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.1 ; FRAC_DE=0.1 ; FC=3
+#N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.1 ; FRAC_DE=0.1 ; FC=3
 df = NULL
 for (k in paste0("data",1:(N_REPS*2)))  {
         b<-thinCounts(a,target.size=SUM_COUNT)
