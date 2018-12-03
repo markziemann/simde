@@ -269,24 +269,148 @@ barplot(prop.table(as.matrix(t( apply(smm_3de[,1:4],2,rev) )),2),las=1,
 
 dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads no DGEs")
 legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_0de$p),1:5,pch=19,col="red")
 points(rev(smm_0de$r),1:5,pch=19,col="blue")
 points(rev(smm_0de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads 5% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_1de$p),1:5,pch=19,col="red")
 points(rev(smm_1de$r),1:5,pch=19,col="blue")
 points(rev(smm_1de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_2de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads 10% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_2de$p),1:5,pch=19,col="red")
 points(rev(smm_2de$r),1:5,pch=19,col="blue")
 points(rev(smm_2de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_3de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads 25% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_3de$p),1:5,pch=19,col="red")
+points(rev(smm_3de$r),1:5,pch=19,col="blue")
+points(rev(smm_3de$f),1:5,pch=19,col="black")
+
+dev.off()
+
+###############################################
+# 10M reads
+###############################################
+# No DE just adding noise
+res0<-agg_edger(a,5,40000000,0,   0,0,10)
+res1<-agg_edger(a,5,40000000,0.2, 0,0,10)
+res2<-agg_edger(a,5,40000000,0.4, 0,0,10)
+res3<-agg_edger(a,5,40000000,0.6, 0,0,10)
+res4<-agg_edger(a,5,40000000,0.8, 0,0,10)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_0de<-smm
+
+res0<-agg_edger(a,5,40000000,0,   0.05,1,10)
+res1<-agg_edger(a,5,40000000,0.2, 0.05,1,10)
+res2<-agg_edger(a,5,40000000,0.4, 0.05,1,10)
+res3<-agg_edger(a,5,40000000,0.6, 0.05,1,10)
+res4<-agg_edger(a,5,40000000,0.8, 0.05,1,10)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_1de<-smm
+
+res0<-agg_edger(a,5,40000000,0,   0.1,1,10)
+res1<-agg_edger(a,5,40000000,0.2, 0.1,1,10)
+res2<-agg_edger(a,5,40000000,0.4, 0.1,1,10)
+res3<-agg_edger(a,5,40000000,0.6, 0.1,1,10)
+res4<-agg_edger(a,5,40000000,0.8, 0.1,1,10)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_2de<-smm
+
+res0<-agg_edger(a,5,40000000,0,   0.25,1,10)
+res1<-agg_edger(a,5,40000000,0.2, 0.25,1,10)
+res2<-agg_edger(a,5,40000000,0.4, 0.25,1,10)
+res3<-agg_edger(a,5,40000000,0.6, 0.25,1,10)
+res4<-agg_edger(a,5,40000000,0.8, 0.25,1,10)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_3de<-smm
+
+smm_10m <- list("smm_0de"=smm_0de,"smm_1de"=smm_1de,"smm_2de"=smm_2de,"smm_3de"=smm_3de)
+save.image(file="simde.RData")
+
+pdf(file="10Mreads.pdf")
+par(mfrow=c(2,4))
+
+barplot(prop.table(as.matrix(t(apply(smm_0de[,1:4],2,rev))),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="40M reads no DGEs",
+ legend.text = TRUE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+barplot(prop.table(as.matrix(t(apply(smm_1de[,1:4],2,rev))),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="40M reads 5% DGEs",
+ legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+barplot(prop.table(as.matrix(t(apply(smm_2de[,1:4],2,rev))),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="40M reads 10% DGEs",
+ legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+barplot(prop.table(as.matrix(t( apply(smm_3de[,1:4],2,rev) )),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="40M reads 25% DGEs",
+ legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="40M reads no DGEs")
+legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_0de$p),1:5,pch=19,col="red")
+points(rev(smm_0de$r),1:5,pch=19,col="blue")
+points(rev(smm_0de$f),1:5,pch=19,col="black")
+
+dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="40M reads 5% DGEs")
+#legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_1de$p),1:5,pch=19,col="red")
+points(rev(smm_1de$r),1:5,pch=19,col="blue")
+points(rev(smm_1de$f),1:5,pch=19,col="black")
+
+dotchart(rev(smm_2de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="40M reads 10% DGEs")
+#legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_2de$p),1:5,pch=19,col="red")
+points(rev(smm_2de$r),1:5,pch=19,col="blue")
+points(rev(smm_2de$f),1:5,pch=19,col="black")
+
+dotchart(rev(smm_3de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="40M reads 25% DGEs")
+#legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_3de$p),1:5,pch=19,col="red")
 points(rev(smm_3de$r),1:5,pch=19,col="blue")
 points(rev(smm_3de$f),1:5,pch=19,col="black")
@@ -384,24 +508,28 @@ barplot(prop.table(as.matrix(t( apply(smm_3de[,1:4],2,rev) )),2),las=1,
 
 dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="100M reads no DGEs")
 legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_0de$p),1:5,pch=19,col="red")
 points(rev(smm_0de$r),1:5,pch=19,col="blue")
 points(rev(smm_0de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="100M reads 5% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_1de$p),1:5,pch=19,col="red")
 points(rev(smm_1de$r),1:5,pch=19,col="blue")
 points(rev(smm_1de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_2de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="100M reads 10% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_2de$p),1:5,pch=19,col="red")
 points(rev(smm_2de$r),1:5,pch=19,col="blue")
 points(rev(smm_2de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_3de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="100M reads 25% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_3de$p),1:5,pch=19,col="red")
 points(rev(smm_3de$r),1:5,pch=19,col="blue")
 points(rev(smm_3de$f),1:5,pch=19,col="black")
@@ -499,24 +627,28 @@ barplot(prop.table(as.matrix(t( apply(smm_3de[,1:4],2,rev) )),2),las=1,
 
 dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="367M reads no DGEs")
 legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_0de$p),1:5,pch=19,col="red")
 points(rev(smm_0de$r),1:5,pch=19,col="blue")
 points(rev(smm_0de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="367M reads 5% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_1de$p),1:5,pch=19,col="red")
 points(rev(smm_1de$r),1:5,pch=19,col="blue")
 points(rev(smm_1de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_2de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="367M reads 10% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_2de$p),1:5,pch=19,col="red")
 points(rev(smm_2de$r),1:5,pch=19,col="blue")
 points(rev(smm_2de$f),1:5,pch=19,col="black")
 
 dotchart(rev(smm_3de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="36M reads 25% DGEs")
 #legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
 points(rev(smm_3de$p),1:5,pch=19,col="red")
 points(rev(smm_3de$r),1:5,pch=19,col="blue")
 points(rev(smm_3de$f),1:5,pch=19,col="black")
