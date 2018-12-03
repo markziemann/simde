@@ -1,4 +1,5 @@
 library(edgeR)
+library("DESeq2")
 library(tidyverse)
 library(parallel)
 
@@ -49,19 +50,23 @@ if (NDIF>0) {
   #Go back to list for downstream work
   UP_DE<-UP_DE$Gene
   DN_DE<-DN_DE$Gene
+  NON_DE<-as.data.frame(setdiff(rownames(df),ALL_DE$Gene))
+  colnames(NON_DE)="Gene"
+  NON_DE$FC=1
+  ALL_DE<-rbind(ALL_DE,NON_DE)
+  ALL_DE<-ALL_DE[ order(as.vector(ALL_DE$Gene)) , ]
   message("incorporate changes")
-  df2<-merge(df,ALL_DE,by.x=0,by.y="Gene",all.x=T)
-  df2[is.na(df2)] <- 1
-  rownames(df2)<-df2$Row.names
-  df2$Row.names=NULL
+  df <- df[ order(row.names(df)), ]
+  df2<-cbind(df,ALL_DE)
+  df2$Gene=NULL
 } else {
   df2<-as.data.frame( df )
   df2$FC<- 1
   UP_DE=NULL
   DN_DE=NULL
 }
-ODD_COLS=(2:(ncol(df2)-1))[c(TRUE,FALSE)]
-EVEN_COLS=(2:(ncol(df2)-1))[c(FALSE,TRUE)]
+ODD_COLS=(1:(ncol(df2)-1))[c(TRUE,FALSE)]
+EVEN_COLS=(1:(ncol(df2)-1))[c(FALSE,TRUE)]
 controls<-df2[,ODD_COLS]
 colnames(controls)=paste0( "ctrl_" ,1:ncol(controls) )
 treatments<-round(df2[,EVEN_COLS]*df2$FC)
@@ -73,7 +78,6 @@ x<- x[which(rowSums(x)/ncol(x)>10),]
 UP_DE<-intersect(UP_DE,rownames(x))
 DN_DE<-intersect(DN_DE,rownames(x))
 xx <- list("x" = x, "UP_DE" = UP_DE, "DN_DE" = DN_DE )
-
 xx
 }
 #simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC)
@@ -93,7 +97,7 @@ RepParallel <- function(n, expr, simplify = "array",...) {
 #xxx<-RepParallel(10,simrna(a,5,10000000,0.2,20), simplify=F, mc.cores = detectCores() )
 
 #################################################
-# define edgeR function
+# define edgeR classic function
 ##################################################
 edger<-function(y) {
 res=NULL
@@ -125,13 +129,75 @@ res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
 res
 }
 
+#################################################
+# define edgeR QL function
+##################################################
+edger_ql<-function(y) {
+res=NULL
+label="simulate"
+samplesheet<-as.data.frame(colnames(y))
+colnames(samplesheet)="sample"
+samplesheet$trt<-as.numeric(grepl("trt",colnames(y)))
+design<-model.matrix(~samplesheet$trt)
+rownames(design)=samplesheet$sample
+y<-y[which(rowSums(y)/ncol(y)>=(10)),]
+z<-DGEList(counts=y)
+z<-calcNormFactors(z)
+z<-estimateDisp(z, design,robust=TRUE,prior.df=1)
+fit<-glmQLFit(z, design)
+lrt<-glmQLFTest(fit)
+dge<-as.data.frame(topTags(lrt,n=Inf))
+dge$dispersion<-lrt$dispersion
+dge<-merge(dge,lrt$fitted.values,by='row.names')
+rownames(dge)=dge$Row.names
+dge$Row.names=NULL
+dge<-merge(dge,z$counts,by='row.names')
+dge<-dge[order(dge$PValue),]
+dge2<-subset(dge,FDR<0.05)
+
+up_de<-dge2[which(dge2$logFC>1),1]
+dn_de<-dge2[which(dge2$logFC<1),1]
+
+res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
+res
+}
+
+#################################################
+# define DESeq2 function
+##################################################
+deseq<-function(y) {
+
+res=NULL
+label="simulate"
+samplesheet<-as.data.frame(colnames(y))
+colnames(samplesheet)="sample"
+samplesheet$trt<-factor(as.numeric(grepl("trt",colnames(y))))
+dds <- DESeqDataSetFromMatrix(countData = y, colData = samplesheet, design = ~ trt )
+res <- DESeq(dds)
+z<- results(res)
+vsd <- vst(dds, blind=FALSE)
+zz<-cbind(z,assay(vsd))
+zz<-as.data.frame(zz[order(zz$padj),])
+
+dge2<-subset(zz,padj<0.05)
+up_de<-rownames(dge2[which(dge2$log2FoldChange>1),])
+dn_de<-rownames(dge2[which(dge2$log2FoldChange<1),])
+
+res <- list("dge" = zz, "up_de" = up_de, "dn_de" = dn_de)
+res
+
+}
+
+
+
+
 ##################################
 # aggregate script
 ##################################
-agg_edger<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS) {
+agg_edger<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC) {
 #N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.3 ; FRAC_DE=0.2 ; FC=1 ; SIMS=10
 xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC), simplify=F, mc.cores = detectCores() )
-dge<-mclapply( sapply(xxx,"[",1) , edger, mc.cores = detectCores() )
+dge<-mclapply( sapply(xxx,"[",1) , DGE_FUNC , mc.cores = detectCores() )
 ups<-sapply(xxx,"[",2)
 dns<-sapply(xxx,"[",3)
 ups_edger<-sapply(dge,"[",2)
@@ -147,10 +213,12 @@ false_neg_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , dns ,  dns
 false_neg<-false_neg_up+false_neg_dn
 nrows<-as.numeric(lapply( sapply(xxx,"[",1 ), nrow))
 true_neg<-nrows-(true_pos+false_pos+false_neg)
-edger_res<-cbind(true_pos,false_pos,true_neg,false_neg)
-edger_res
+dge_res<-cbind(true_pos,false_pos,true_neg,false_neg)
+dge_res
 }
 #res1<-agg_edger(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
+
+
 
 
 #sanity checks
@@ -178,14 +246,14 @@ heatmap(cor(xx[,2:ncol(xx)]),scale="none",main="check3")
 dev.off()
 
 ###############################################
-# 10M reads
+# 10M reads with edger classic
 ###############################################
 # No DE just adding noise
-res0<-agg_edger(a,5,10000000,0,   0,0,10)
-res1<-agg_edger(a,5,10000000,0.2, 0,0,10)
-res2<-agg_edger(a,5,10000000,0.4, 0,0,10)
-res3<-agg_edger(a,5,10000000,0.6, 0,0,10)
-res4<-agg_edger(a,5,10000000,0.8, 0,0,10)
+res0<-agg_edger(a,5,10000000,0,   0,0,10,edger)
+res1<-agg_edger(a,5,10000000,0.2, 0,0,10,edger)
+res2<-agg_edger(a,5,10000000,0.4, 0,0,10,edger)
+res3<-agg_edger(a,5,10000000,0.6, 0,0,10,edger)
+res4<-agg_edger(a,5,10000000,0.8, 0,0,10,edger)
 res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
 #lapply( res_0de , colMeans)
 smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
@@ -197,11 +265,11 @@ smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
 smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
 smm_0de<-smm
 
-res0<-agg_edger(a,5,10000000,0,   0.05,1,10)
-res1<-agg_edger(a,5,10000000,0.2, 0.05,1,10)
-res2<-agg_edger(a,5,10000000,0.4, 0.05,1,10)
-res3<-agg_edger(a,5,10000000,0.6, 0.05,1,10)
-res4<-agg_edger(a,5,10000000,0.8, 0.05,1,10)
+res0<-agg_edger(a,5,10000000,0,   0.05,1,10,edger)
+res1<-agg_edger(a,5,10000000,0.2, 0.05,1,10,edger)
+res2<-agg_edger(a,5,10000000,0.4, 0.05,1,10,edger)
+res3<-agg_edger(a,5,10000000,0.6, 0.05,1,10,edger)
+res4<-agg_edger(a,5,10000000,0.8, 0.05,1,10,edger)
 res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
 #lapply( res_0de , colMeans)
 smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
@@ -213,11 +281,11 @@ smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
 smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
 smm_1de<-smm
 
-res0<-agg_edger(a,5,10000000,0,   0.1,1,10)
-res1<-agg_edger(a,5,10000000,0.2, 0.1,1,10)
-res2<-agg_edger(a,5,10000000,0.4, 0.1,1,10)
-res3<-agg_edger(a,5,10000000,0.6, 0.1,1,10)
-res4<-agg_edger(a,5,10000000,0.8, 0.1,1,10)
+res0<-agg_edger(a,5,10000000,0,   0.1,1,10,edger)
+res1<-agg_edger(a,5,10000000,0.2, 0.1,1,10,edger)
+res2<-agg_edger(a,5,10000000,0.4, 0.1,1,10,edger)
+res3<-agg_edger(a,5,10000000,0.6, 0.1,1,10,edger)
+res4<-agg_edger(a,5,10000000,0.8, 0.1,1,10,edger)
 res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
 #lapply( res_0de , colMeans)
 smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
@@ -229,11 +297,11 @@ smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
 smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
 smm_2de<-smm
 
-res0<-agg_edger(a,5,10000000,0,   0.25,1,10)
-res1<-agg_edger(a,5,10000000,0.2, 0.25,1,10)
-res2<-agg_edger(a,5,10000000,0.4, 0.25,1,10)
-res3<-agg_edger(a,5,10000000,0.6, 0.25,1,10)
-res4<-agg_edger(a,5,10000000,0.8, 0.25,1,10)
+res0<-agg_edger(a,5,10000000,0,   0.25,1,10,edger)
+res1<-agg_edger(a,5,10000000,0.2, 0.25,1,10,edger)
+res2<-agg_edger(a,5,10000000,0.4, 0.25,1,10,edger)
+res3<-agg_edger(a,5,10000000,0.6, 0.25,1,10,edger)
+res4<-agg_edger(a,5,10000000,0.8, 0.25,1,10,edger)
 res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
 #lapply( res_0de , colMeans)
 smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
@@ -295,10 +363,146 @@ points(rev(smm_3de$p),1:5,pch=19,col="red")
 points(rev(smm_3de$r),1:5,pch=19,col="blue")
 points(rev(smm_3de$f),1:5,pch=19,col="black")
 
-dev.off()
 
 ###############################################
-# 10M reads
+# 10M reads with edger ql
+###############################################
+# No DE just adding noise
+res0<-agg_edger(a,5,10000000,0,   0,0,10,edger_ql)
+res1<-agg_edger(a,5,10000000,0.2, 0,0,10,edger_ql)
+res2<-agg_edger(a,5,10000000,0.4, 0,0,10,edger_ql)
+res3<-agg_edger(a,5,10000000,0.6, 0,0,10,edger_ql)
+res4<-agg_edger(a,5,10000000,0.8, 0,0,10,edger_ql)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_0de<-smm
+
+res0<-agg_edger(a,5,10000000,0,   0.05,1,10,edger_ql)
+res1<-agg_edger(a,5,10000000,0.2, 0.05,1,10,edger_ql)
+res2<-agg_edger(a,5,10000000,0.4, 0.05,1,10,edger_ql)
+res3<-agg_edger(a,5,10000000,0.6, 0.05,1,10,edger_ql)
+res4<-agg_edger(a,5,10000000,0.8, 0.05,1,10,edger_ql)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_1de<-smm
+
+res0<-agg_edger(a,5,10000000,0,   0.1,1,10,edger_ql)
+res1<-agg_edger(a,5,10000000,0.2, 0.1,1,10,edger_ql)
+res2<-agg_edger(a,5,10000000,0.4, 0.1,1,10,edger_ql)
+res3<-agg_edger(a,5,10000000,0.6, 0.1,1,10,edger_ql)
+res4<-agg_edger(a,5,10000000,0.8, 0.1,1,10,edger_ql)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_2de<-smm
+
+res0<-agg_edger(a,5,10000000,0,   0.25,1,10,edger_ql)
+res1<-agg_edger(a,5,10000000,0.2, 0.25,1,10,edger_ql)
+res2<-agg_edger(a,5,10000000,0.4, 0.25,1,10,edger_ql)
+res3<-agg_edger(a,5,10000000,0.6, 0.25,1,10,edger_ql)
+res4<-agg_edger(a,5,10000000,0.8, 0.25,1,10,edger_ql)
+res <- list("v0"=res0,"v0.2"=res1,"v0.4"=res2,"v0.6"=res3,"v0.8"=res4)
+#lapply( res_0de , colMeans)
+smm<-t(matrix(unlist(lapply( res , colMeans)),nrow=4))
+colnames(smm)=c("true_pos","false_pos","true_neg","false_neg")
+rownames(smm)=c("v0","v0.2","v0.4","v0.6","v0.8")
+smm<-as.data.frame(smm)
+smm$p<-smm$true_pos/(smm$true_pos+smm$false_pos)
+smm$r<-smm$true_pos/(smm$true_pos+smm$false_neg)
+smm$f<-2*smm$p*smm$r/(smm$p+smm$r)
+smm_3de<-smm
+
+smm_10m <- list("smm_0de"=smm_0de,"smm_1de"=smm_1de,"smm_2de"=smm_2de,"smm_3de"=smm_3de)
+save.image(file="simde.RData")
+
+par(mfrow=c(2,4))
+
+barplot(prop.table(as.matrix(t(apply(smm_0de[,1:4],2,rev))),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="10M reads no DGEs",
+ legend.text = TRUE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+barplot(prop.table(as.matrix(t(apply(smm_1de[,1:4],2,rev))),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="10M reads 5% DGEs",
+ legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+barplot(prop.table(as.matrix(t(apply(smm_2de[,1:4],2,rev))),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="10M reads 10% DGEs",
+ legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+barplot(prop.table(as.matrix(t( apply(smm_3de[,1:4],2,rev) )),2),las=1,
+ ylab="Added noise",horiz=T,xlab="Gene proportion",main="10M reads 25% DGEs",
+ legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
+
+dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads no DGEs")
+legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_0de$p),1:5,pch=19,col="red")
+points(rev(smm_0de$r),1:5,pch=19,col="blue")
+points(rev(smm_0de$f),1:5,pch=19,col="black")
+
+dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads 5% DGEs")
+#legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_1de$p),1:5,pch=19,col="red")
+points(rev(smm_1de$r),1:5,pch=19,col="blue")
+points(rev(smm_1de$f),1:5,pch=19,col="black")
+
+dotchart(rev(smm_2de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads 10% DGEs")
+#legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_2de$p),1:5,pch=19,col="red")
+points(rev(smm_2de$r),1:5,pch=19,col="blue")
+points(rev(smm_2de$f),1:5,pch=19,col="black")
+
+dotchart(rev(smm_3de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),main="10M reads 25% DGEs")
+#legend("topright", pch = c(19,19,19), col = c("black", "red", "blue"),legend = c("F1","p","r"))
+grid()
+points(rev(smm_3de$p),1:5,pch=19,col="red")
+points(rev(smm_3de$r),1:5,pch=19,col="blue")
+points(rev(smm_3de$f),1:5,pch=19,col="black")
+
+dev.off()
+
+q()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###############################################
+# 40M reads
 ###############################################
 # No DE just adding noise
 res0<-agg_edger(a,5,40000000,0,   0,0,10)
