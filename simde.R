@@ -308,19 +308,19 @@ res_limma<-res_limma[which(res_limma$FRAC_DE==0.1),]
 pdf(file="barplots.pdf") ; par(mfrow=c(2,2)) ; par(mar=c(4,8,3,2))
 
 barplot(prop.table(as.matrix(t(apply(res_edger[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="edgeR with varied variance and DEG%",
+ cex.names=0.5,cex.main=0.9,main="edgeR 5 reps varied variance and DEG%",
  legend.text = TRUE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 barplot(prop.table(as.matrix(t(apply(res_edgerql[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="edgeR QL with varied variance and DEG%",
+ cex.names=0.5,cex.main=0.9,main="edgeR QL 5 reps varied variance and DEG%",
  legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 barplot(prop.table(as.matrix(t(apply(res_deseq[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="DESeq with varied variance and DEG%",
+ cex.names=0.5,cex.main=0.9,main="DESeq 5 reps varied variance and DEG%",
  legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 barplot(prop.table(as.matrix(t(apply(res_limma[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="limma with varied variance and DEG%",
+ cex.names=0.5,cex.main=0.9,main="limma 5 reps varied variance and DEG%",
  legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 dev.off()
