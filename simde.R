@@ -3,6 +3,7 @@ library("edgeR")
 library("DESeq2")
 library("tidyverse")
 library("parallel")
+library("topconfects")
 
 #a is orig expression data
 a<-read.table("start_data/ERR2539161/ERR2539161.se.tsv")
@@ -213,6 +214,12 @@ res
 }
 
 
+## here is how to run topconfects from an edger analysis
+## slow but works
+#econfects <- edger_confects(fit, coef=2, fdr=0.05)
+#econfects <- edger_confects(fit, coef=2, fdr=0.5)
+# confects_plot(econfects)
+
 ##################################
 # aggregate script
 ##################################
@@ -283,9 +290,9 @@ res=NULL
 for (DGE_FUNC in c("edger","edger_ql","deseq","limma")) {
   for ( SUM_COUNT in c(10000000,40000000,100000000)) {
     for ( FRAC_DE in c(0.01,0.05,0.1,0.25)) {
-      for (FC in c(1)) {
-        for  ( VARIANCE in c(0,0.2,0.4,0.6)) {
-          res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,10,DGE_FUNC)
+      for (FC in c(0.584,1,1.584,2)) {
+        for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
+          res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC)
           res=rbind(res,res_new)
         }
       }
@@ -328,156 +335,180 @@ dev.off()
 res_edger_1e7<-res_edger[which(res_edger$SUM_COUNT==1E+7),]
 res_edger_1e7_v0<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0),]
 res_edger_1e7_v2<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.2),]
+res_edger_1e7_v3<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.3),]
 res_edger_1e7_v4<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.4),]
-res_edger_1e7_v6<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.6),]
+res_edger_1e7_v5<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.5),]
 
 res_edger_4e7<-res_edger[which(res_edger$SUM_COUNT==4E+7),]
 res_edger_4e7_v0<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0),]
 res_edger_4e7_v2<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.2),]
+res_edger_4e7_v3<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.3),]
 res_edger_4e7_v4<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.4),]
-res_edger_4e7_v6<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.6),]
+res_edger_4e7_v5<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.5),]
 
 res_edger_1e8<-res_edger[which(res_edger$SUM_COUNT==1E+8),]
 res_edger_1e8_v0<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0),]
 res_edger_1e8_v2<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.2),]
+res_edger_1e8_v3<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.3),]
 res_edger_1e8_v4<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.4),]
-res_edger_1e8_v6<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.6),]
+res_edger_1e8_v5<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.5),]
 
 res_edgerql_1e7<-res_edgerql[which(res_edgerql$SUM_COUNT==1E+7),]
 res_edgerql_1e7_v0<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0),]
 res_edgerql_1e7_v2<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.2),]
+res_edgerql_1e7_v3<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.3),]
 res_edgerql_1e7_v4<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.4),]
-res_edgerql_1e7_v6<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.6),]
+res_edgerql_1e7_v5<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.5),]
 
 res_edgerql_4e7<-res_edgerql[which(res_edgerql$SUM_COUNT==4E+7),]
 res_edgerql_4e7_v0<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0),]
 res_edgerql_4e7_v2<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.2),]
+res_edgerql_4e7_v3<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.3),]
 res_edgerql_4e7_v4<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.4),]
-res_edgerql_4e7_v6<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.6),]
+res_edgerql_4e7_v5<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.5),]
 
 res_edgerql_1e8<-res_edgerql[which(res_edgerql$SUM_COUNT==1E+8),]
 res_edgerql_1e8_v0<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0),]
 res_edgerql_1e8_v2<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.2),]
+res_edgerql_1e8_v3<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.3),]
 res_edgerql_1e8_v4<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.4),]
-res_edgerql_1e8_v6<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.6),]
+res_edgerql_1e8_v5<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.5),]
 
 res_deseq_1e7<-res_deseq[which(res_deseq$SUM_COUNT==1E+7),]
 res_deseq_1e7_v0<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0),]
 res_deseq_1e7_v2<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.2),]
+res_deseq_1e7_v3<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.3),]
 res_deseq_1e7_v4<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.4),]
-res_deseq_1e7_v6<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.6),]
+res_deseq_1e7_v5<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.5),]
 
 res_deseq_4e7<-res_deseq[which(res_deseq$SUM_COUNT==4E+7),]
 res_deseq_4e7_v0<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0),]
 res_deseq_4e7_v2<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.2),]
+res_deseq_4e7_v3<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.3),]
 res_deseq_4e7_v4<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.4),]
-res_deseq_4e7_v6<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.6),]
+res_deseq_4e7_v5<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.5),]
 
 res_deseq_1e8<-res_deseq[which(res_deseq$SUM_COUNT==1E+8),]
 res_deseq_1e8_v0<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0),]
 res_deseq_1e8_v2<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.2),]
+res_deseq_1e8_v3<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.3),]
 res_deseq_1e8_v4<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.4),]
-res_deseq_1e8_v6<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.6),]
+res_deseq_1e8_v5<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.5),]
 
 res_limma_1e7<-res_limma[which(res_limma$SUM_COUNT==1E+7),]
 res_limma_1e7_v0<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0),]
 res_limma_1e7_v2<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.2),]
+res_limma_1e7_v3<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.3),]
 res_limma_1e7_v4<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.4),]
-res_limma_1e7_v6<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.6),]
+res_limma_1e7_v5<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.5),]
 
 res_limma_4e7<-res_limma[which(res_limma$SUM_COUNT==4E+7),]
 res_limma_4e7_v0<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0),]
 res_limma_4e7_v2<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.2),]
+res_limma_4e7_v3<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.3),]
 res_limma_4e7_v4<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.4),]
-res_limma_4e7_v6<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.6),]
+res_limma_4e7_v5<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.5),]
 
 res_limma_1e8<-res_limma[which(res_limma$SUM_COUNT==1E+8),]
 res_limma_1e8_v0<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0),]
 res_limma_1e8_v2<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.2),]
+res_limma_1e8_v3<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.3),]
 res_limma_1e8_v4<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.4),]
-res_limma_1e8_v6<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.6),]
+res_limma_1e8_v5<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.5),]
 
 pdf(file="pr.pdf")
 par(mfrow=c(2,2))
 
 par(mar=c(4,4,3,2))
 plot(res_edger_1e7_v0$r,res_edger_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v2$r,res_edger_1e7_v0$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v4$r,res_edger_1e7_v4$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v6$r,res_edger_1e7_v6$p,xlab="recall",ylab="precision",pch=18,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e7_v2$r,res_edger_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e7_v3$r,res_edger_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e7_v4$r,res_edger_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e7_v5$r,res_edger_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
 
 points(res_edger_4e7_v0$r,res_edger_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v2$r,res_edger_4e7_v0$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v4$r,res_edger_4e7_v4$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v6$r,res_edger_4e7_v6$p,xlab="recall",ylab="precision",pch=18,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_4e7_v2$r,res_edger_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_4e7_v3$r,res_edger_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_4e7_v4$r,res_edger_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_4e7_v5$r,res_edger_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
 
 points(res_edger_1e8_v0$r,res_edger_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
 points(res_edger_1e8_v2$r,res_edger_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e8_v4$r,res_edger_1e8_v4$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e8_v6$r,res_edger_1e8_v6$p,xlab="recall",ylab="precision",pch=18,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e8_v3$r,res_edger_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e8_v4$r,res_edger_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_edger_1e8_v5$r,res_edger_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
 
 legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.4","0.6"),col=c("black") ,pch=15:19,cex=0.6,title="added variance")
+legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
 mtext("edgeR 5 reps, 10% DEG" ,cex=0.8); grid()
 
 par(mar=c(4,4,3,2))
 plot(res_edgerql_1e7_v0$r,res_edgerql_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v2$r,res_edgerql_1e7_v0$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v4$r,res_edgerql_1e7_v4$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v6$r,res_edgerql_1e7_v6$p,xlab="recall",ylab="precision",pch=18,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e7_v2$r,res_edgerql_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e7_v3$r,res_edgerql_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e7_v4$r,res_edgerql_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e7_v5$r,res_edgerql_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
 
 points(res_edgerql_4e7_v0$r,res_edgerql_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v2$r,res_edgerql_4e7_v0$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v4$r,res_edgerql_4e7_v4$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v6$r,res_edgerql_4e7_v6$p,xlab="recall",ylab="precision",pch=18,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_4e7_v2$r,res_edgerql_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_4e7_v3$r,res_edgerql_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_4e7_v4$r,res_edgerql_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_4e7_v5$r,res_edgerql_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
 
 points(res_edgerql_1e8_v0$r,res_edgerql_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
 points(res_edgerql_1e8_v2$r,res_edgerql_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e8_v4$r,res_edgerql_1e8_v4$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e8_v6$r,res_edgerql_1e8_v6$p,xlab="recall",ylab="precision",pch=18,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e8_v3$r,res_edgerql_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e8_v4$r,res_edgerql_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_edgerql_1e8_v5$r,res_edgerql_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
 
 legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.4","0.6"),col=c("black") ,pch=15:19,cex=0.6,title="added variance")
+legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
 mtext("edgeR QL 5 reps, 10% DEG" ,cex=0.8); grid()
 
 par(mar=c(4,4,3,2))
 plot(res_deseq_1e7_v0$r,res_deseq_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v2$r,res_deseq_1e7_v0$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v4$r,res_deseq_1e7_v4$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v6$r,res_deseq_1e7_v6$p,xlab="recall",ylab="precision",pch=18,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e7_v2$r,res_deseq_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e7_v3$r,res_deseq_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e7_v4$r,res_deseq_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e7_v5$r,res_deseq_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
 
 points(res_deseq_4e7_v0$r,res_deseq_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v2$r,res_deseq_4e7_v0$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v4$r,res_deseq_4e7_v4$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v6$r,res_deseq_4e7_v6$p,xlab="recall",ylab="precision",pch=18,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_4e7_v2$r,res_deseq_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_4e7_v3$r,res_deseq_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_4e7_v4$r,res_deseq_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_4e7_v5$r,res_deseq_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
 
 points(res_deseq_1e8_v0$r,res_deseq_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
 points(res_deseq_1e8_v2$r,res_deseq_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e8_v4$r,res_deseq_1e8_v4$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e8_v6$r,res_deseq_1e8_v6$p,xlab="recall",ylab="precision",pch=18,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e8_v3$r,res_deseq_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e8_v4$r,res_deseq_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_deseq_1e8_v5$r,res_deseq_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
 
 legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.4","0.6"),col=c("black") ,pch=15:19,cex=0.6,title="added variance")
+legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
 mtext("DESeq 5 reps, 10% DEG" ,cex=0.8) ; grid()
 
 par(mar=c(4,4,3,2))
 plot(res_limma_1e7_v0$r,res_limma_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v2$r,res_limma_1e7_v0$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v4$r,res_limma_1e7_v4$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v6$r,res_limma_1e7_v6$p,xlab="recall",ylab="precision",pch=18,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e7_v2$r,res_limma_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e7_v3$r,res_limma_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e7_v4$r,res_limma_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e7_v5$r,res_limma_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
 
 points(res_limma_4e7_v0$r,res_limma_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v2$r,res_limma_4e7_v0$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v4$r,res_limma_4e7_v4$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v6$r,res_limma_4e7_v6$p,xlab="recall",ylab="precision",pch=18,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_4e7_v2$r,res_limma_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_4e7_v3$r,res_limma_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_4e7_v4$r,res_limma_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_4e7_v5$r,res_limma_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
 
 points(res_limma_1e8_v0$r,res_limma_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
 points(res_limma_1e8_v2$r,res_limma_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e8_v4$r,res_limma_1e8_v4$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e8_v6$r,res_limma_1e8_v6$p,xlab="recall",ylab="precision",pch=18,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e8_v3$r,res_limma_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e8_v4$r,res_limma_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
+points(res_limma_1e8_v5$r,res_limma_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
 
 legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.4","0.6"),col=c("black") ,pch=15:19,cex=0.6,title="added variance")
+legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
 mtext("Limma 5 reps, 10% DEG" ,cex=0.8); grid()
 
 dev.off()
