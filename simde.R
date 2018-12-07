@@ -1,6 +1,3 @@
-library("limma")
-library("edgeR")
-library("DESeq2")
 library("tidyverse")
 library("parallel")
 library("topconfects")
@@ -13,6 +10,7 @@ a<-read.table("start_data/ERR2539161/ERR2539161.se.tsv")
 ########################################
 #inputs=(a,N_REPS,SUM_COUNT,
 simrna<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC) {
+library("edgeR")
 #N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.1 ; FRAC_DE=0.1 ; FC=3
 df = NULL
 for (k in paste0("data",1:(N_REPS*2)))  {
@@ -102,6 +100,8 @@ RepParallel <- function(n, expr, simplify = "array",...) {
 # define edgeR classic function
 ##################################################
 edger<-function(y) {
+library("limma")
+library("edgeR")
 res=NULL
 label="simulate"
 samplesheet<-as.data.frame(colnames(y))
@@ -124,8 +124,8 @@ dge<-merge(dge,z$counts,by='row.names')
 dge<-dge[order(dge$PValue),]
 dge2<-subset(dge,FDR<0.05)
 
-up_de<-dge2[which(dge2$logFC>1),1]
-dn_de<-dge2[which(dge2$logFC<1),1]
+up_de<-dge2[which(dge2$logFC>0),1]
+dn_de<-dge2[which(dge2$logFC<0),1]
 
 res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
 res
@@ -135,6 +135,8 @@ res
 # define edgeR QL function
 ##################################################
 edger_ql<-function(y) {
+library("limma")
+library("edgeR")
 res=NULL
 label="simulate"
 samplesheet<-as.data.frame(colnames(y))
@@ -157,8 +159,8 @@ dge<-merge(dge,z$counts,by='row.names')
 dge<-dge[order(dge$PValue),]
 dge2<-subset(dge,FDR<0.05)
 
-up_de<-dge2[which(dge2$logFC>1),1]
-dn_de<-dge2[which(dge2$logFC<1),1]
+up_de<-dge2[which(dge2$logFC>0),1]
+dn_de<-dge2[which(dge2$logFC<0),1]
 
 res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
 res
@@ -168,6 +170,7 @@ res
 # define DESeq2 function
 ##################################################
 deseq<-function(y) {
+library("DESeq2")
 res=NULL
 label="simulate"
 samplesheet<-as.data.frame(colnames(y))
@@ -180,8 +183,8 @@ vsd <- vst(dds, blind=FALSE)
 zz<-cbind(z,assay(vsd))
 zz<-as.data.frame(zz[order(zz$padj),])
 dge2<-subset(zz,padj<0.05)
-up_de<-rownames(dge2[which(dge2$log2FoldChange>1),])
-dn_de<-rownames(dge2[which(dge2$log2FoldChange<1),])
+up_de<-rownames(dge2[which(dge2$log2FoldChange>0),])
+dn_de<-rownames(dge2[which(dge2$log2FoldChange<0),])
 res <- list("dge" = zz, "up_de" = up_de, "dn_de" = dn_de)
 res
 }
@@ -191,6 +194,8 @@ res
 # define limma function
 ##################################################
 limma<-function(y) {
+library("limma")
+library("edgeR")
 res=NULL
 label="simulate"
 samplesheet<-as.data.frame(colnames(y))
@@ -207,12 +212,34 @@ fit.de <- eBayes(fit, robust=TRUE)
 dge<-topTable(fit.de,n=Inf)
 dge<-dge[order(dge$adj.P.Val),]
 dge2<-subset(dge,adj.P.Val<0.05)
-up_de<-rownames(dge2[which(dge2$logFC>1),])
-dn_de<-rownames(dge2[which(dge2$logFC<1),])
+up_de<-rownames(dge2[which(dge2$logFC>0),])
+dn_de<-rownames(dge2[which(dge2$logFC<0),])
 res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
 res
 }
 
+
+#################################################
+# define absseq function
+##################################################
+absseq<-function(y) {
+library("ABSSeq")
+res=NULL
+label="simulate"
+samplesheet<-as.data.frame(colnames(y))
+colnames(samplesheet)="sample"
+samplesheet$trt<-as.numeric(grepl("trt",colnames(y)))
+obj<-ABSDataSet(y, factor(samplesheet$trt))  #default normalisation is qtotal
+obj<-ABSSeq(obj)
+dge<- as.data.frame(cbind(obj$Amean,obj$Bmean,obj$foldChange,obj$pvalue,obj$adj.pvalue))
+colnames(dge)=c("Amean","Bmean","logFC","PValue","FDR")
+dge<-dge[order(dge$PValue),]
+dge2<-subset(dge,FDR<0.05)
+up_de<-rownames(dge2[which(dge2$logFC>0),])
+dn_de<-rownames(dge2[which(dge2$logFC<0),])
+res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
+res
+}
 
 ## here is how to run topconfects from an edger analysis
 ## slow but works
@@ -284,21 +311,81 @@ dev.off()
 ###############################################
 # 10M reads with edger classic
 ###############################################
-N_REPS=5
 SIMS=10
 res=NULL
-for (DGE_FUNC in c("edger","edger_ql","deseq","limma")) {
-  for ( SUM_COUNT in c(10000000,40000000,100000000)) {
-    for ( FRAC_DE in c(0.01,0.05,0.1,0.25)) {
-      for (FC in c(0.584,1,1.584,2)) {
+#for ( FRAC_DE in c(0.01,0.05,0.1,0.25)) {
+FRAC_DE=0.1
+#for (FC in c(0.584,1,1.584,2)) {
+
+pdf(file="pr.pdf",width=11.7,height=6.9)
+for (FC in c(1)){
+  par(mfrow=c(3,5))
+  for (N_REPS in c(3,5,10)) {
+    for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
+      for ( SUM_COUNT in c(10000000,40000000,100000000)) {
         for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
           res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC)
           res=rbind(res,res_new)
         }
       }
+      res1<-res[which(res$DGE_FUNC==DGE_FUNC),]
+      res1<-res1[which(res1$FRAC_DE==FRAC_DE),]
+
+      #points
+      res1_1e7<-res1[which(res1$SUM_COUNT==1E+7),]
+      res1_1e7_v0<-res1_1e7[which(res1_1e7$VARIANCE==0),]
+      res1_1e7_v2<-res1_1e7[which(res1_1e7$VARIANCE==0.2),]
+      res1_1e7_v3<-res1_1e7[which(res1_1e7$VARIANCE==0.3),]
+      res1_1e7_v4<-res1_1e7[which(res1_1e7$VARIANCE==0.4),]
+      res1_1e7_v5<-res1_1e7[which(res1_1e7$VARIANCE==0.5),]
+
+      res1_4e7<-res1[which(res1$SUM_COUNT==4E+7),]
+      res1_4e7_v0<-res1_4e7[which(res1_4e7$VARIANCE==0),]
+      res1_4e7_v2<-res1_4e7[which(res1_4e7$VARIANCE==0.2),]
+      res1_4e7_v3<-res1_4e7[which(res1_4e7$VARIANCE==0.3),]
+      res1_4e7_v4<-res1_4e7[which(res1_4e7$VARIANCE==0.4),]
+      res1_4e7_v5<-res1_4e7[which(res1_4e7$VARIANCE==0.5),]
+
+      res1_1e8<-res1[which(res1$SUM_COUNT==1E+8),]
+      res1_1e8_v0<-res1_1e8[which(res1_1e8$VARIANCE==0),]
+      res1_1e8_v2<-res1_1e8[which(res1_1e8$VARIANCE==0.2),]
+      res1_1e8_v3<-res1_1e8[which(res1_1e8$VARIANCE==0.3),]
+      res1_1e8_v4<-res1_1e8[which(res1_1e8$VARIANCE==0.4),]
+      res1_1e8_v5<-res1_1e8[which(res1_1e8$VARIANCE==0.5),]
+
+      par(mar=c(4,4,3,2))
+      plot(res1_1e7_v0$r,res1_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e7_v2$r,res1_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e7_v3$r,res1_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e7_v4$r,res1_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e7_v5$r,res1_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
+
+      points(res1_4e7_v0$r,res1_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
+      points(res1_4e7_v2$r,res1_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
+      points(res1_4e7_v3$r,res1_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
+      points(res1_4e7_v4$r,res1_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
+      points(res1_4e7_v5$r,res1_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
+
+      points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
+      points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
+
+      legend(0.4,0,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
+      legend(0.75,0,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
+      mtext(paste(DGE_FUNC,N_REPS,"reps, 10% DEG") ,cex=0.8); grid()
+
     }
   }
 }
+dev.off()
+
+
+
+q()
+
+
 
 rownames(res)<-paste(res$DGE_FUNC,res$SUM_COUNT,res$FRAC_DE,res$VARIANCE)
 save.image(file="simde.RData")
@@ -311,8 +398,10 @@ res_deseq<-res[which(res$DGE_FUNC=="deseq"),]
 res_deseq<-res_deseq[which(res_deseq$FRAC_DE==0.1),]
 res_limma<-res[which(res$DGE_FUNC=="limma"),]
 res_limma<-res_limma[which(res_limma$FRAC_DE==0.1),]
+res_absseq<-res[which(res$DGE_FUNC=="absseq"),]
+res_absseq<-res_absseq[which(res_absseq$FRAC_DE==0.1),]
 
-pdf(file="barplots.pdf") ; par(mfrow=c(2,2)) ; par(mar=c(4,8,3,2))
+pdf(file="barplots.pdf") ; par(mfrow=c(1,5)) ; par(mar=c(4,8,3,2))
 
 barplot(prop.table(as.matrix(t(apply(res_edger[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
  cex.names=0.5,cex.main=0.9,main="edgeR 5 reps varied variance and DEG%",
@@ -323,211 +412,17 @@ barplot(prop.table(as.matrix(t(apply(res_edgerql[,8:11],2,rev))),2),las=1,horiz=
  legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 barplot(prop.table(as.matrix(t(apply(res_deseq[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="DESeq 5 reps varied variance and DEG%",
+ cex.names=0.5,cex.main=0.9,main="DESeq2 5 reps varied variance and DEG%",
  legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 barplot(prop.table(as.matrix(t(apply(res_limma[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="limma 5 reps varied variance and DEG%",
+ cex.names=0.5,cex.main=0.9,main="Limma 5 reps varied variance and DEG%",
  legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
-dev.off()
+barplot(prop.table(as.matrix(t(apply(res_absseq[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion",
+ cex.names=0.5,cex.main=0.9,main="ABSseq 5 reps varied variance and DEG%",
+ legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
-res_edger_1e7<-res_edger[which(res_edger$SUM_COUNT==1E+7),]
-res_edger_1e7_v0<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0),]
-res_edger_1e7_v2<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.2),]
-res_edger_1e7_v3<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.3),]
-res_edger_1e7_v4<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.4),]
-res_edger_1e7_v5<-res_edger_1e7[which(res_edger_1e7$VARIANCE==0.5),]
-
-res_edger_4e7<-res_edger[which(res_edger$SUM_COUNT==4E+7),]
-res_edger_4e7_v0<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0),]
-res_edger_4e7_v2<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.2),]
-res_edger_4e7_v3<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.3),]
-res_edger_4e7_v4<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.4),]
-res_edger_4e7_v5<-res_edger_4e7[which(res_edger_4e7$VARIANCE==0.5),]
-
-res_edger_1e8<-res_edger[which(res_edger$SUM_COUNT==1E+8),]
-res_edger_1e8_v0<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0),]
-res_edger_1e8_v2<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.2),]
-res_edger_1e8_v3<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.3),]
-res_edger_1e8_v4<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.4),]
-res_edger_1e8_v5<-res_edger_1e8[which(res_edger_1e8$VARIANCE==0.5),]
-
-res_edgerql_1e7<-res_edgerql[which(res_edgerql$SUM_COUNT==1E+7),]
-res_edgerql_1e7_v0<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0),]
-res_edgerql_1e7_v2<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.2),]
-res_edgerql_1e7_v3<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.3),]
-res_edgerql_1e7_v4<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.4),]
-res_edgerql_1e7_v5<-res_edgerql_1e7[which(res_edgerql_1e7$VARIANCE==0.5),]
-
-res_edgerql_4e7<-res_edgerql[which(res_edgerql$SUM_COUNT==4E+7),]
-res_edgerql_4e7_v0<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0),]
-res_edgerql_4e7_v2<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.2),]
-res_edgerql_4e7_v3<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.3),]
-res_edgerql_4e7_v4<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.4),]
-res_edgerql_4e7_v5<-res_edgerql_4e7[which(res_edgerql_4e7$VARIANCE==0.5),]
-
-res_edgerql_1e8<-res_edgerql[which(res_edgerql$SUM_COUNT==1E+8),]
-res_edgerql_1e8_v0<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0),]
-res_edgerql_1e8_v2<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.2),]
-res_edgerql_1e8_v3<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.3),]
-res_edgerql_1e8_v4<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.4),]
-res_edgerql_1e8_v5<-res_edgerql_1e8[which(res_edgerql_1e8$VARIANCE==0.5),]
-
-res_deseq_1e7<-res_deseq[which(res_deseq$SUM_COUNT==1E+7),]
-res_deseq_1e7_v0<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0),]
-res_deseq_1e7_v2<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.2),]
-res_deseq_1e7_v3<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.3),]
-res_deseq_1e7_v4<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.4),]
-res_deseq_1e7_v5<-res_deseq_1e7[which(res_deseq_1e7$VARIANCE==0.5),]
-
-res_deseq_4e7<-res_deseq[which(res_deseq$SUM_COUNT==4E+7),]
-res_deseq_4e7_v0<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0),]
-res_deseq_4e7_v2<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.2),]
-res_deseq_4e7_v3<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.3),]
-res_deseq_4e7_v4<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.4),]
-res_deseq_4e7_v5<-res_deseq_4e7[which(res_deseq_4e7$VARIANCE==0.5),]
-
-res_deseq_1e8<-res_deseq[which(res_deseq$SUM_COUNT==1E+8),]
-res_deseq_1e8_v0<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0),]
-res_deseq_1e8_v2<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.2),]
-res_deseq_1e8_v3<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.3),]
-res_deseq_1e8_v4<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.4),]
-res_deseq_1e8_v5<-res_deseq_1e8[which(res_deseq_1e8$VARIANCE==0.5),]
-
-res_limma_1e7<-res_limma[which(res_limma$SUM_COUNT==1E+7),]
-res_limma_1e7_v0<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0),]
-res_limma_1e7_v2<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.2),]
-res_limma_1e7_v3<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.3),]
-res_limma_1e7_v4<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.4),]
-res_limma_1e7_v5<-res_limma_1e7[which(res_limma_1e7$VARIANCE==0.5),]
-
-res_limma_4e7<-res_limma[which(res_limma$SUM_COUNT==4E+7),]
-res_limma_4e7_v0<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0),]
-res_limma_4e7_v2<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.2),]
-res_limma_4e7_v3<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.3),]
-res_limma_4e7_v4<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.4),]
-res_limma_4e7_v5<-res_limma_4e7[which(res_limma_4e7$VARIANCE==0.5),]
-
-res_limma_1e8<-res_limma[which(res_limma$SUM_COUNT==1E+8),]
-res_limma_1e8_v0<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0),]
-res_limma_1e8_v2<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.2),]
-res_limma_1e8_v3<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.3),]
-res_limma_1e8_v4<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.4),]
-res_limma_1e8_v5<-res_limma_1e8[which(res_limma_1e8$VARIANCE==0.5),]
-
-pdf(file="pr.pdf")
-par(mfrow=c(2,2))
-
-par(mar=c(4,4,3,2))
-plot(res_edger_1e7_v0$r,res_edger_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v2$r,res_edger_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v3$r,res_edger_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v4$r,res_edger_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e7_v5$r,res_edger_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
-
-points(res_edger_4e7_v0$r,res_edger_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v2$r,res_edger_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v3$r,res_edger_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v4$r,res_edger_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_4e7_v5$r,res_edger_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
-
-points(res_edger_1e8_v0$r,res_edger_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e8_v2$r,res_edger_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e8_v3$r,res_edger_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e8_v4$r,res_edger_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edger_1e8_v5$r,res_edger_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
-
-legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
-mtext("edgeR 5 reps, 10% DEG" ,cex=0.8); grid()
-
-par(mar=c(4,4,3,2))
-plot(res_edgerql_1e7_v0$r,res_edgerql_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v2$r,res_edgerql_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v3$r,res_edgerql_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v4$r,res_edgerql_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e7_v5$r,res_edgerql_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
-
-points(res_edgerql_4e7_v0$r,res_edgerql_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v2$r,res_edgerql_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v3$r,res_edgerql_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v4$r,res_edgerql_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_4e7_v5$r,res_edgerql_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
-
-points(res_edgerql_1e8_v0$r,res_edgerql_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e8_v2$r,res_edgerql_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e8_v3$r,res_edgerql_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e8_v4$r,res_edgerql_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_edgerql_1e8_v5$r,res_edgerql_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
-
-legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
-mtext("edgeR QL 5 reps, 10% DEG" ,cex=0.8); grid()
-
-par(mar=c(4,4,3,2))
-plot(res_deseq_1e7_v0$r,res_deseq_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v2$r,res_deseq_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v3$r,res_deseq_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v4$r,res_deseq_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e7_v5$r,res_deseq_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
-
-points(res_deseq_4e7_v0$r,res_deseq_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v2$r,res_deseq_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v3$r,res_deseq_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v4$r,res_deseq_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_4e7_v5$r,res_deseq_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
-
-points(res_deseq_1e8_v0$r,res_deseq_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e8_v2$r,res_deseq_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e8_v3$r,res_deseq_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e8_v4$r,res_deseq_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_deseq_1e8_v5$r,res_deseq_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
-
-legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
-mtext("DESeq 5 reps, 10% DEG" ,cex=0.8) ; grid()
-
-par(mar=c(4,4,3,2))
-plot(res_limma_1e7_v0$r,res_limma_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v2$r,res_limma_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v3$r,res_limma_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v4$r,res_limma_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e7_v5$r,res_limma_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
-
-points(res_limma_4e7_v0$r,res_limma_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v2$r,res_limma_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v3$r,res_limma_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v4$r,res_limma_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_4e7_v5$r,res_limma_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
-
-points(res_limma_1e8_v0$r,res_limma_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e8_v2$r,res_limma_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e8_v3$r,res_limma_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e8_v4$r,res_limma_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
-points(res_limma_1e8_v5$r,res_limma_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
-
-legend(0.80,1,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-legend(0.80,0.7,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
-mtext("Limma 5 reps, 10% DEG" ,cex=0.8); grid()
-
-dev.off()
-
-q()
-
-
-
-
-
-
-
-
-res
-smm_10m <- list("smm_0de"=smm_0de,"smm_1de"=smm_1de,"smm_2de"=smm_2de,"smm_3de"=smm_3de)
-save.image(file="simde.RData")
-
-pdf(file="10Mreads.pdf")
-par(mfrow=c(2,4))
 
 barplot(prop.table(as.matrix(t(apply(smm_0de[,1:4],2,rev))),2),las=1,
  ylab="Added noise",horiz=T,xlab="Gene proportion",cex.main=0.9,main="edger 10M reads no DGEs",
