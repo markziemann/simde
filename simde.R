@@ -312,15 +312,13 @@ dev.off()
 # 10M reads with edger classic
 ###############################################
 SIMS=10
-res=NULL
 #for ( FRAC_DE in c(0.01,0.05,0.1,0.25)) {
 FRAC_DE=0.1
-#for (FC in c(0.584,1,1.584,2)) {
-
 pdf(file="pr.pdf",width=11.7,height=6.9)
-for (FC in c(1)){
+for (FC in c(0.584,1,1.584,2)) {
   par(mfrow=c(3,5))
   for (N_REPS in c(3,5,10)) {
+    res=NULL
     for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
       for ( SUM_COUNT in c(10000000,40000000,100000000)) {
         for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
@@ -372,8 +370,8 @@ for (FC in c(1)){
       points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="black",xlim=c(0,1),ylim=c(0,1))
       points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="black",xlim=c(0,1),ylim=c(0,1))
 
-      legend(0.4,0,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
-      legend(0.75,0,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
+      legend(0.4,0.2,legend=c("10M","40M","100M"),col=c("red", "blue","black") ,pch=19,cex=0.6,title="read depth")
+      legend(0.75,0.2,legend=c("0","0.2","0.3","0.4","0.5"),col=c("black") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
       mtext(paste(DGE_FUNC,N_REPS,"reps, 10% DEG") ,cex=0.8); grid()
 
     }
