@@ -27,7 +27,7 @@ a<-aa[which(aa$ERR2539161>=10),,drop=F]
 # Get the reactome gene set GMT
 download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip",destfile="ReactomePathways.gmt.zip")
 unzip("ReactomePathways.gmt.zip")
-
+GMT="ReactomePathways.gmt"
 #' gmt_import
 #'
 #' This function imports GMT files into a list of character vectors for mitch analysis. GMT files are a commonly used
@@ -96,7 +96,14 @@ if (NDIF>0) {
 
   # now find a list of genes inside the pathways
   UP_DE<-unique(unlist(unname(UP_LIST)))
+  # select the ones that are also in the profile
+  UP_DE<-UP_DE[which(UP_DE %in% row.names(df))]
+
+  # same for down genes
   DN_DE<-unique(unlist(unname(DN_LIST)))
+  DN_DE<-DN_DE[which(DN_DE %in% row.names(df))]
+
+
   ITX<-intersect(UP_DE,DN_DE)
   # need to eliminate the overlapping ones for simplicity
   UP_DE<-setdiff(UP_DE,ITX)
@@ -120,10 +127,6 @@ if (NDIF>0) {
   ALL_DE<-ALL_DE[ order(as.vector(ALL_DE$Gene)) , ]
   message("incorporate changes")
 
-#######################################
-# up to herenow
-#######################################
-
   df <- df[ order(row.names(df)), ]
   df2<-cbind(df,ALL_DE)
   df2$Gene=NULL
@@ -132,6 +135,8 @@ if (NDIF>0) {
   df2$FC<- 1
   UP_DE=NULL
   DN_DE=NULL
+  UP_LIST=NULL
+  DN_LIST=NULL
 }
 ODD_COLS=(1:(ncol(df2)-1))[c(TRUE,FALSE)]
 EVEN_COLS=(1:(ncol(df2)-1))[c(FALSE,TRUE)]
@@ -145,7 +150,7 @@ rownames(x)=rownames(df2)
 x<- x[which(rowSums(x)/ncol(x)>10),]
 UP_DE<-intersect(UP_DE,rownames(x))
 DN_DE<-intersect(DN_DE,rownames(x))
-xx <- list("x" = x, "UP_DE" = UP_DE, "DN_DE" = DN_DE )
+xx <- list("x" = x,"UP_LIST"=UP_LIST,"DN_LIST"=DN_LIST,"UP_DE"=UP_DE,"DN_DE"=DN_DE)
 xx
 }
 #simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC)
@@ -319,9 +324,9 @@ res
 ##################################
 # aggregate script
 ##################################
-agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC) {
+agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,GMT) {
 #N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.3 ; FRAC_DE=0.2 ; FC=1 ; SIMS=10 ; DGE_FUNC="edger"
-xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC), simplify=F, mc.cores = detectCores() )
+xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,GMT), simplify=F, mc.cores = detectCores() )
 dge<-mclapply( sapply(xxx,"[",1) , DGE_FUNC , mc.cores = detectCores() )
 ups<-sapply(xxx,"[",2)
 dns<-sapply(xxx,"[",3)
@@ -355,23 +360,23 @@ dge_res
 #sanity checks to make sure the simulation is working as expected
 ###############################################
 pdf(file="sanity_check.pdf")
-x1<-simrna(a,5,10000000,0,0,0)
+x1<-simrna(a,5,10000000,0,0,0,GMT)
 colnames(x1$x)<-paste("x1",colnames(x1$x),sep="_")
-x2<-simrna(a,5,10000000,1,0,0)
+x2<-simrna(a,5,10000000,1,0,0,GMT)
 colnames(x2$x)<-paste("x2",colnames(x2$x),sep="_")
 xx<-merge(x1$x,x2$x,by=0)
 heatmap(cor(xx[,2:ncol(xx)]),scale="none",cex.main=0.9,main="check1")
 
-x1<-simrna(a,5,10000000,0,0,0)
+x1<-simrna(a,5,10000000,0,0,0,GMT)
 colnames(x1$x)<-paste("x1",colnames(x1$x),sep="_")
-x2<-simrna(a,5,10000000,0,0.1,1)
+x2<-simrna(a,5,10000000,0,0.1,1,GMT)
 colnames(x2$x)<-paste("x2",colnames(x2$x),sep="_")
 xx<-merge(x1$x,x2$x,by=0)
 heatmap(cor(xx[,2:ncol(xx)]),scale="none",cex.main=0.9,main="check2")
 
-x1<-simrna(a,5,10000000,0,0,0)
+x1<-simrna(a,5,10000000,0,0,0,GMT)
 colnames(x1$x)<-paste("x1",colnames(x1$x),sep="_")
-x2<-simrna(a,5,10000000,1,0.1,1)
+x2<-simrna(a,5,10000000,1,0.1,1,GMT)
 colnames(x2$x)<-paste("x2",colnames(x2$x),sep="_")
 xx<-merge(x1$x,x2$x,by=0)
 heatmap(cor(xx[,2:ncol(xx)]),scale="none",cex.main=0.9,main="check3")
@@ -382,17 +387,17 @@ dev.off()
 # 10M reads with edger classic
 ###############################################
 SIMS=10
-for ( FRAC_DE in c(0.01,0.05,0.1,0.25)) {
-  PDFNAME=paste(FRAC_DE,"_pr.pdf",sep="")
+for ( FRAC_DE in c(0.05)) {
+  PDFNAME=paste(FRAC_DE,"_pw.pdf",sep="")
   pdf(file=PDFNAME,width=11.7,height=6.9)
-  for (FC in c(0.584,1,1.584,2)) {
+  for (FC in c(1)) {
     par(mfrow=c(3,5))
     for (N_REPS in c(3,5,10)) {
       res=NULL
       for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
         for ( SUM_COUNT in c(10000000,40000000,100000000)) {
           for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
-            res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC)
+            res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,GMT)
             res=rbind(res,res_new)
           }
         }
