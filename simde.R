@@ -184,7 +184,7 @@ colnames(samplesheet)="sample"
 samplesheet$trt<-factor(as.numeric(grepl("trt",colnames(y))))
 dds <- DESeqDataSetFromMatrix(countData = y, colData = samplesheet, design = ~ trt )
 res <- DESeq(dds)
-z<- results(res)
+z<- DESeq2::results(res)
 vsd <- vst(dds, blind=FALSE)
 zz<-cbind(z,assay(vsd))
 zz<-as.data.frame(zz[order(zz$padj),])
@@ -372,14 +372,14 @@ for ( FRAC_DE in c(0.01,0.05,0.1,0.25)) {
         points(res1_4e7_v4$r,res1_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
         points(res1_4e7_v5$r,res1_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
 
-        points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="dark gray",xlim=c(0,1),ylim=c(0,1))
 
-        legend(0.4,0.2,legend=c("10M","40M","100M"),col=c("red", "blue","gray") ,pch=19,cex=0.6,title="read depth")
-        legend(0.75,0.2,legend=c("0","0.2","0.3","0.4","0.5"),col=c("gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
+        legend(0.4,0.2,legend=c("10M","40M","100M"),col=c("red", "blue","dark gray") ,pch=19,cex=0.6,title="read depth")
+        legend(0.75,0.2,legend=c("0","0.2","0.3","0.4","0.5"),col=c("dark gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
         mtext(paste(DGE_FUNC,N_REPS,"reps, 10% DEG") ,cex=0.8); grid()
 
       }
@@ -439,16 +439,16 @@ barplot(prop.table(as.matrix(t(apply(smm_1de[,1:4],2,rev))),2),las=1,
  legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
 
 dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),cex.main=0.9,main="edger 10M reads no DGEs")
-legend("topright", pch = c(19,19,19), col = c("gray", "red", "blue"),legend = c("F1","p","r"))
+legend("topright", pch = c(19,19,19), col = c("dark gray", "red", "blue"),legend = c("F1","p","r"))
 grid()
 points(rev(smm_0de$p),1:5,pch=19,col="red")
 points(rev(smm_0de$r),1:5,pch=19,col="blue")
-points(rev(smm_0de$f),1:5,pch=19,col="gray")
+points(rev(smm_0de$f),1:5,pch=19,col="dark gray")
 
 dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),cex.main=0.9,main="edger 10M reads 5% DGEs")
-#legend("topright", pch = c(19,19,19), col = c("gray", "red", "blue"),legend = c("F1","p","r"))
+#legend("topright", pch = c(19,19,19), col = c("dark gray", "red", "blue"),legend = c("F1","p","r"))
 grid()
 points(rev(smm_1de$p),1:5,pch=19,col="red")
 points(rev(smm_1de$r),1:5,pch=19,col="blue")
-points(rev(smm_1de$f),1:5,pch=19,col="gray")
+points(rev(smm_1de$f),1:5,pch=19,col="dark gray")
 

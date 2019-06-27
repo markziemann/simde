@@ -150,7 +150,7 @@ rownames(x)=rownames(df2)
 x<- x[which(rowSums(x)/ncol(x)>10),]
 UP_DE<-intersect(UP_DE,rownames(x))
 DN_DE<-intersect(DN_DE,rownames(x))
-xx <- list("x" = x,"UP_LIST"=UP_LIST,"DN_LIST"=DN_LIST,"UP_DE"=UP_DE,"DN_DE"=DN_DE)
+xx <- list("x" = x,"UP_DE"=UP_DE,"DN_DE"=DN_DE,"UP_LIST"=UP_LIST,"DN_LIST"=DN_LIST)
 xx
 }
 #simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC)
@@ -252,7 +252,7 @@ colnames(samplesheet)="sample"
 samplesheet$trt<-factor(as.numeric(grepl("trt",colnames(y))))
 dds <- DESeqDataSetFromMatrix(countData = y, colData = samplesheet, design = ~ trt )
 res <- DESeq(dds)
-z<- results(res)
+z<- DESeq2::results(res)
 vsd <- vst(dds, blind=FALSE)
 zz<-cbind(z,assay(vsd))
 zz<-as.data.frame(zz[order(zz$padj),])
@@ -327,7 +327,11 @@ res
 agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,GMT) {
 #N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.3 ; FRAC_DE=0.2 ; FC=1 ; SIMS=10 ; DGE_FUNC="edger"
 xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,GMT), simplify=F, mc.cores = detectCores() )
-dge<-mclapply( sapply(xxx,"[",1) , DGE_FUNC , mc.cores = detectCores() )
+tbl<-sapply(xxx,"[",1) 
+dge<-mclapply( tbl , "deseq" , mc.cores = detectCores() )
+dge<-lapply( tbl , "deseq"  )
+
+#dge<-mclapply( sapply(xxx,"[[",1) , DGE_FUNC , mc.cores = detectCores() )
 ups<-sapply(xxx,"[",2)
 dns<-sapply(xxx,"[",3)
 ups_edger<-sapply(dge,"[",2)
@@ -386,7 +390,7 @@ dev.off()
 ###############################################
 # 10M reads with edger classic
 ###############################################
-SIMS=10
+SIMS=3
 for ( FRAC_DE in c(0.05)) {
   PDFNAME=paste(FRAC_DE,"_pw.pdf",sep="")
   pdf(file=PDFNAME,width=11.7,height=6.9)
@@ -394,7 +398,8 @@ for ( FRAC_DE in c(0.05)) {
     par(mfrow=c(3,5))
     for (N_REPS in c(3,5,10)) {
       res=NULL
-      for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
+      for (DGE_FUNC in c("deseq")) {
+#      for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
         for ( SUM_COUNT in c(10000000,40000000,100000000)) {
           for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
             res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,GMT)
@@ -439,14 +444,14 @@ for ( FRAC_DE in c(0.05)) {
         points(res1_4e7_v4$r,res1_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
         points(res1_4e7_v5$r,res1_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
 
-        points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="dark gray",xlim=c(0,1),ylim=c(0,1))
 
-        legend(0.4,0.2,legend=c("10M","40M","100M"),col=c("red", "blue","gray") ,pch=19,cex=0.6,title="read depth")
-        legend(0.75,0.2,legend=c("0","0.2","0.3","0.4","0.5"),col=c("gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
+        legend(0.4,0.2,legend=c("10M","40M","100M"),col=c("red", "blue","dark gray") ,pch=19,cex=0.6,title="read depth")
+        legend(0.75,0.2,legend=c("0","0.2","0.3","0.4","0.5"),col=c("dark gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
         mtext(paste(DGE_FUNC,N_REPS,"reps, 10% DEG") ,cex=0.8); grid()
 
       }
@@ -455,67 +460,4 @@ for ( FRAC_DE in c(0.05)) {
   dev.off()
 }
 
-
-q()
-
-
-
-rownames(res)<-paste(res$DGE_FUNC,res$SUM_COUNT,res$FRAC_DE,res$VARIANCE)
-save.image(file="simde.RData")
-
-res_edger<-res[which(res$DGE_FUNC=="edger"),]
-res_edger<-res_edger[which(res_edger$FRAC_DE==0.1),]
-res_edgerql<-res[which(res$DGE_FUNC=="edger_ql"),]
-res_edgerql<-res_edgerql[which(res_edgerql$FRAC_DE==0.1),]
-res_deseq<-res[which(res$DGE_FUNC=="deseq"),]
-res_deseq<-res_deseq[which(res_deseq$FRAC_DE==0.1),]
-res_limma<-res[which(res$DGE_FUNC=="limma"),]
-res_limma<-res_limma[which(res_limma$FRAC_DE==0.1),]
-res_absseq<-res[which(res$DGE_FUNC=="absseq"),]
-res_absseq<-res_absseq[which(res_absseq$FRAC_DE==0.1),]
-
-pdf(file="barplots.pdf") ; par(mfrow=c(1,5)) ; par(mar=c(4,8,3,2))
-
-barplot(prop.table(as.matrix(t(apply(res_edger[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="edgeR 5 reps varied variance and DEG%",
- legend.text = TRUE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-barplot(prop.table(as.matrix(t(apply(res_edgerql[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="edgeR QL 5 reps varied variance and DEG%",
- legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-barplot(prop.table(as.matrix(t(apply(res_deseq[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="DESeq2 5 reps varied variance and DEG%",
- legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-barplot(prop.table(as.matrix(t(apply(res_limma[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion", 
- cex.names=0.5,cex.main=0.9,main="Limma 5 reps varied variance and DEG%",
- legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-barplot(prop.table(as.matrix(t(apply(res_absseq[,8:11],2,rev))),2),las=1,horiz=T,xlab="Gene proportion",
- cex.names=0.5,cex.main=0.9,main="ABSseq 5 reps varied variance and DEG%",
- legend.text = F,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-
-barplot(prop.table(as.matrix(t(apply(smm_0de[,1:4],2,rev))),2),las=1,
- ylab="Added noise",horiz=T,xlab="Gene proportion",cex.main=0.9,main="edger 10M reads no DGEs",
- legend.text = TRUE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-barplot(prop.table(as.matrix(t(apply(smm_1de[,1:4],2,rev))),2),las=1,
- ylab="Added noise",horiz=T,xlab="Gene proportion",cex.main=0.9,main="edger 10M reads 5% DGEs",
- legend.text = FALSE,args.legend=list(x="topright",bty="n",inset=c(-0.05, 0)))
-
-dotchart(rev(smm_0de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),cex.main=0.9,main="edger 10M reads no DGEs")
-legend("topright", pch = c(19,19,19), col = c("gray", "red", "blue"),legend = c("F1","p","r"))
-grid()
-points(rev(smm_0de$p),1:5,pch=19,col="red")
-points(rev(smm_0de$r),1:5,pch=19,col="blue")
-points(rev(smm_0de$f),1:5,pch=19,col="gray")
-
-dotchart(rev(smm_1de$f),pch=19,labels=rev(rownames(smm)),xlim=c(0,1),cex.main=0.9,main="edger 10M reads 5% DGEs")
-#legend("topright", pch = c(19,19,19), col = c("gray", "red", "blue"),legend = c("F1","p","r"))
-grid()
-points(rev(smm_1de$p),1:5,pch=19,col="red")
-points(rev(smm_1de$r),1:5,pch=19,col="blue")
-points(rev(smm_1de$f),1:5,pch=19,col="gray")
 
