@@ -5,6 +5,7 @@ library("edgeR")
 library("DESeq2")
 library("limma")
 library("ABSSeq")
+library("stringi")
 
 
 # a is orig expression data
@@ -23,11 +24,15 @@ aa$GeneSymbol=NULL
 
 a<-aa[which(aa$ERR2539161>=10),,drop=F]
 
+# generate some gene sets
+gsets<-sapply( rep(100,1000) , function(x) {list(as.character(sample(rownames(a),x))) } )
+#gsets<-sapply( rep(100,1000) , function(x) {list(as.character(sample(head(rownames(a),1000),x))) } )
+names(gsets)<-stri_rand_strings(length(gsets), 15, pattern = "[A-Za-z]")
 
 # Get the reactome gene set GMT
-download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip",destfile="ReactomePathways.gmt.zip")
-unzip("ReactomePathways.gmt.zip")
-GMT="ReactomePathways.gmt"
+#download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip",destfile="ReactomePathways.gmt.zip")
+#unzip("ReactomePathways.gmt.zip")
+#GMT="ReactomePathways.gmt"
 #' gmt_import
 #'
 #' This function imports GMT files into a list of character vectors for mitch analysis. GMT files are a commonly used
@@ -51,11 +56,9 @@ gmt_import<-function(gmtfile){
 ########################################
 # simulate some gene expression data
 ########################################
-simrna<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,GMT) {
+simrna<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,gsets) {
 
 # N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.2 ; FRAC_DE=0.05 ; FC=1 ; GMT="ReactomePathways.gmt"
-
-gset<-gmt_import(GMT)
 
 library("edgeR")
 
@@ -67,11 +70,11 @@ for (k in paste0("data",1:(N_REPS*2)))  {
      }
 
 # now need to only include gsets with 10 members in the 
-gset_sub<-which(unlist( lapply(gset,function(x) { length(which(rownames(a) %in% as.character(unlist(x)))) >10 }  ) ) )
-gset<-gset[which(names(gset) %in% names(gset_sub))]
+gsets_sub<-which(unlist( lapply(gsets,function(x) { length(which(rownames(a) %in% as.character(unlist(x)))) >10 }  ) ) )
+gsets<-gsets[which(names(gsets) %in% names(gsets_sub))]
 
 #Number of differential genes
-NDIF=round(length(gset)*FRAC_DE)
+NDIF=round(length(gsets)*FRAC_DE)
 
 if (VARIANCE>0) {
   #create some random values centred around 1 with some% error
@@ -88,7 +91,7 @@ if (NDIF>0) {
   if ( NDIF%%2==1 ) { print("odd") ; NDIF=NDIF-1 }
 
   # sample some pathways to fiddle with
-  DE_LIST<-sample(gset , NDIF)
+  DE_LIST<-sample(gsets , NDIF)
 
   # divide the list in 2 with half up and half down
   UP_LIST=sample(DE_LIST , NDIF/2)
@@ -189,20 +192,9 @@ z<-calcNormFactors(z)
 z<-estimateDisp(z, design,robust=TRUE,prior.df=1)
 fit<-glmFit(z, design)
 lrt<-glmLRT(fit)
-dge<-as.data.frame(topTags(lrt,n=Inf))
-dge$dispersion<-lrt$dispersion
-dge<-merge(dge,lrt$fitted.values,by='row.names')
-rownames(dge)=dge$Row.names
-dge$Row.names=NULL
-dge<-merge(dge,z$counts,by='row.names')
-dge<-dge[order(dge$PValue),]
-dge2<-subset(dge,FDR<0.05)
-
-up_de<-dge2[which(dge2$logFC>0),1]
-dn_de<-dge2[which(dge2$logFC<0),1]
-
-res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-res
+de<-as.data.frame(topTags(lrt,n=Inf))
+de$dispersion<-lrt$dispersion
+de
 }
 
 #################################################
@@ -224,26 +216,26 @@ z<-calcNormFactors(z)
 z<-estimateDisp(z, design,robust=TRUE,prior.df=1)
 fit<-glmQLFit(z, design)
 lrt<-glmQLFTest(fit)
-dge<-as.data.frame(topTags(lrt,n=Inf))
-dge$dispersion<-lrt$dispersion
-dge<-merge(dge,lrt$fitted.values,by='row.names')
-rownames(dge)=dge$Row.names
-dge$Row.names=NULL
-dge<-merge(dge,z$counts,by='row.names')
-dge<-dge[order(dge$PValue),]
-dge2<-subset(dge,FDR<0.05)
-
-up_de<-dge2[which(dge2$logFC>0),1]
-dn_de<-dge2[which(dge2$logFC<0),1]
-
-res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-res
+de<-as.data.frame(topTags(lrt,n=Inf))
+de$dispersion<-lrt$dispersion
+de<-merge(de,lrt$fitted.values,by='row.names')
+de<-de[order(de$PValue),]
+rownames(de)=de$Row.names
+de$Row.names=NULL
+#de<-merge(de,z$counts,by='row.names')
+#de<-de[order(de$PValue),]
+#dge2<-subset(dge,FDR<0.05)
+#up_de<-dge2[which(dge2$logFC>0),1]
+#dn_de<-dge2[which(dge2$logFC<0),1]
+#res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
+#res
+de
 }
 
 #################################################
 # define DESeq2 function
 ##################################################
-deseq<-function(y) {
+deseq2<-function(y) {
 library("DESeq2")
 res=NULL
 label="simulate"
@@ -256,11 +248,13 @@ z<- DESeq2::results(res)
 vsd <- vst(dds, blind=FALSE)
 zz<-cbind(z,assay(vsd))
 zz<-as.data.frame(zz[order(zz$padj),])
-dge2<-subset(zz,padj<0.05)
-up_de<-rownames(dge2[which(dge2$log2FoldChange>0),])
-dn_de<-rownames(dge2[which(dge2$log2FoldChange<0),])
-res <- list("dge" = zz, "up_de" = up_de, "dn_de" = dn_de)
-res
+#dge2<-subset(zz,padj<0.05)
+#up_de<-rownames(dge2[which(dge2$log2FoldChange>0),])
+#dn_de<-rownames(dge2[which(dge2$log2FoldChange<0),])
+#res <- list("dge" = zz, "up_de" = up_de, "dn_de" = dn_de)
+#res
+#zz$GeneID<-rownames(zz)
+zz
 }
 
 
@@ -285,11 +279,12 @@ fit <- lmFit(v, design)
 fit.de <- eBayes(fit, robust=TRUE)
 dge<-topTable(fit.de,n=Inf)
 dge<-dge[order(dge$adj.P.Val),]
-dge2<-subset(dge,adj.P.Val<0.05)
-up_de<-rownames(dge2[which(dge2$logFC>0),])
-dn_de<-rownames(dge2[which(dge2$logFC<0),])
-res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-res
+#dge2<-subset(dge,adj.P.Val<0.05)
+#up_de<-rownames(dge2[which(dge2$logFC>0),])
+#dn_de<-rownames(dge2[which(dge2$logFC<0),])
+#res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
+#res
+dge
 }
 
 
@@ -308,11 +303,12 @@ obj<-ABSSeq(obj)
 dge<- as.data.frame(cbind(obj$Amean,obj$Bmean,obj$foldChange,obj$pvalue,obj$adj.pvalue))
 colnames(dge)=c("Amean","Bmean","logFC","PValue","FDR")
 dge<-dge[order(dge$PValue),]
-dge2<-subset(dge,FDR<0.05)
-up_de<-rownames(dge2[which(dge2$logFC>0),])
-dn_de<-rownames(dge2[which(dge2$logFC<0),])
-res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-res
+#dge2<-subset(dge,FDR<0.05)
+#up_de<-rownames(dge2[which(dge2$logFC>0),])
+#dn_de<-rownames(dge2[which(dge2$logFC<0),])
+#res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
+#res
+dge
 }
 
 ## here is how to run topconfects from an edger analysis
@@ -324,24 +320,44 @@ res
 ##################################
 # aggregate script
 ##################################
-agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,GMT) {
-#N_REPS=5 ; SUM_COUNT=10000000 ; VARIANCE=0.3 ; FRAC_DE=0.2 ; FC=1 ; SIMS=10 ; DGE_FUNC="edger"
-xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,GMT), simplify=F, mc.cores = detectCores() )
-tbl<-sapply(xxx,"[",1) 
-dge<-mclapply( tbl , "deseq" , mc.cores = detectCores() )
-dge<-lapply( tbl , "deseq"  )
+agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets) {
+# N_REPS=3 ; SUM_COUNT=10000000 ; VARIANCE=0.3 ; FRAC_DE=0.2 ; FC=1 ; SIMS=2 ; DGE_FUNC="edger" ; gsets=gsets
+library("mitch")
+xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,gsets), simplify=F, mc.cores = detectCores() )
+# xxx<-RepParallel(2,simrna(a,5,10000000,0.2,0.1,1,gsets), simplify=F, mc.cores = detectCores() )
 
-#dge<-mclapply( sapply(xxx,"[[",1) , DGE_FUNC , mc.cores = detectCores() )
-ups<-sapply(xxx,"[",2)
-dns<-sapply(xxx,"[",3)
-ups_edger<-sapply(dge,"[",2)
-dns_edger<-sapply(dge,"[",3)
-true_pos_up<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , ups ,  ups_edger ))
-true_pos_dn<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , dns ,  dns_edger ))
-false_pos_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , ups_edger ,  ups ))
-false_pos_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , dns_edger , dns ))
-false_neg_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , ups ,  ups_edger ))
-false_neg_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , dns ,  dns_edger ))
+# groundtruth
+gt_up<-sapply(xxx,"[",4)
+gt_up<-lapply( gt_up , names)
+gt_dn<-sapply(xxx,"[",5)
+gt_dn<-lapply( gt_dn , names)
+
+tbl<-sapply(xxx,"[",1) 
+dge<-mclapply( tbl , DGE_FUNC , mc.cores = detectCores() )
+names(dge)<-paste0(names(dge),1:length(dge),sep="")
+w<-mitch_import(dge, DGE_FUNC )
+res<-mitch_calc(w,gsets,priority="significance")
+padj<-apply( res$manova_result[,grep("^p.x",colnames(res$manova_result))] , 2 , p.adjust)
+colnames(padj)<-paste0("adj.",colnames(padj),sep="")
+res$manova_result<-data.frame(res$manova_result,padj)
+
+# now to extract the observed changes
+obs_up=list()
+obs_dn=list()
+for (N in 1:length(grep("^p.x",colnames(res$manova_result)))) {
+  SCOL=3+N
+  NDIMS=length(grep("^p.x",colnames(res$manova_result)))
+  FDRCOL=ncol(res$manova_result)-NDIMS+N
+  obs_up[[N]]<-res$manova_result[which(res$manova_result[,SCOL]>0 & res$manova_result[,FDRCOL]<0.05 ),1]
+  obs_dn[[N]]<-res$manova_result[which(res$manova_result[,SCOL]<0 & res$manova_result[,FDRCOL]<0.05 ),1]
+}
+
+true_pos_up<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_up ,  gt_up ))
+true_pos_dn<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_dn ,  gt_dn ))
+false_pos_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , obs_up ,  gt_up ))
+false_pos_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , obs_dn , gt_dn ))
+false_neg_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_up ,  obs_up ))
+false_neg_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_dn ,  obs_dn ))
 
 true_pos<-mean(true_pos_up+true_pos_dn)
 false_pos<-mean(false_pos_up+false_pos_dn)
@@ -358,51 +374,23 @@ dge_res
 }
 #res1<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
 
-
-
-###############################################
-#sanity checks to make sure the simulation is working as expected
-###############################################
-pdf(file="sanity_check.pdf")
-x1<-simrna(a,5,10000000,0,0,0,GMT)
-colnames(x1$x)<-paste("x1",colnames(x1$x),sep="_")
-x2<-simrna(a,5,10000000,1,0,0,GMT)
-colnames(x2$x)<-paste("x2",colnames(x2$x),sep="_")
-xx<-merge(x1$x,x2$x,by=0)
-heatmap(cor(xx[,2:ncol(xx)]),scale="none",cex.main=0.9,main="check1")
-
-x1<-simrna(a,5,10000000,0,0,0,GMT)
-colnames(x1$x)<-paste("x1",colnames(x1$x),sep="_")
-x2<-simrna(a,5,10000000,0,0.1,1,GMT)
-colnames(x2$x)<-paste("x2",colnames(x2$x),sep="_")
-xx<-merge(x1$x,x2$x,by=0)
-heatmap(cor(xx[,2:ncol(xx)]),scale="none",cex.main=0.9,main="check2")
-
-x1<-simrna(a,5,10000000,0,0,0,GMT)
-colnames(x1$x)<-paste("x1",colnames(x1$x),sep="_")
-x2<-simrna(a,5,10000000,1,0.1,1,GMT)
-colnames(x2$x)<-paste("x2",colnames(x2$x),sep="_")
-xx<-merge(x1$x,x2$x,by=0)
-heatmap(cor(xx[,2:ncol(xx)]),scale="none",cex.main=0.9,main="check3")
-dev.off()
-
-
 ###############################################
 # 10M reads with edger classic
 ###############################################
-SIMS=3
-for ( FRAC_DE in c(0.05)) {
+SIMS=10
+
+for ( FRAC_DE in c(0.05,0.1,0.5)) {
   PDFNAME=paste(FRAC_DE,"_pw.pdf",sep="")
   pdf(file=PDFNAME,width=11.7,height=6.9)
-  for (FC in c(1)) {
-    par(mfrow=c(3,5))
+  for (FC in c(0.584,1,1.584,2)) {
+    par(mfrow=c(3,3))
     for (N_REPS in c(3,5,10)) {
       res=NULL
-      for (DGE_FUNC in c("deseq")) {
+      for (DGE_FUNC in c("deseq2","edger","limma")) {
 #      for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
         for ( SUM_COUNT in c(10000000,40000000,100000000)) {
           for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
-            res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,GMT)
+            res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets)
             res=rbind(res,res_new)
           }
         }
@@ -450,8 +438,8 @@ for ( FRAC_DE in c(0.05)) {
         points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="dark gray",xlim=c(0,1),ylim=c(0,1))
         points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="dark gray",xlim=c(0,1),ylim=c(0,1))
 
-        legend(0.4,0.2,legend=c("10M","40M","100M"),col=c("red", "blue","dark gray") ,pch=19,cex=0.6,title="read depth")
-        legend(0.75,0.2,legend=c("0","0.2","0.3","0.4","0.5"),col=c("dark gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
+        legend(0.4,0.3,legend=c("10M","40M","100M"),col=c("red", "blue","dark gray") ,pch=19,cex=0.6,title="read depth")
+        legend(0.75,0.3,legend=c("0","0.2","0.3","0.4","0.5"),col=c("dark gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
         mtext(paste(DGE_FUNC,N_REPS,"reps, 10% DEG") ,cex=0.8); grid()
 
       }
@@ -459,5 +447,5 @@ for ( FRAC_DE in c(0.05)) {
   }
   dev.off()
 }
-
+write.table(res,file="simpw_res.tsv",quote=F,sep='\t')
 
