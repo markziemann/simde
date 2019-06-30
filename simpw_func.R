@@ -312,7 +312,7 @@ dge<-mclapply( tbl , DGE_FUNC , mc.cores = detectCores() )
 names(dge)<-paste0(names(dge),1:length(dge),sep="")
 w<-mitch_import(dge, DGE_FUNC )
 res<-mitch_calc(w,gsets,priority="significance")
-padj<-apply( res$manova_result[,grep("^p.x",colnames(res$manova_result))] , 2 , p.adjust)
+padj<-apply( res$manova_result[,grep("^p.x",colnames(res$manova_result))] , 2 , p.adjust, method="BH")
 colnames(padj)<-paste0("adj.",colnames(padj),sep="")
 res$manova_result<-data.frame(res$manova_result,padj)
 
@@ -349,3 +349,30 @@ dge_res
 }
 #res1<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
 
+run_hypergeometric<-function(x){
+
+ups<-rownames(subset(xx, padj<0.05 & log2FoldChange > 0))
+dns<-rownames(subset(xx, padj<0.05 & log2FoldChange < 0))
+
+l_ups<-length(ups)
+l_dns<-length(dns)
+
+geneset_sizes<-lapply( gsets , function(x) {length(which(x %in% rownames(a)))} )
+
+n_ups<- lapply( gsets , function(x) {length(which(x %in% ups ))} )
+
+n_dns<-lapply( gsets , function(x) {length(which(x %in% dns ))} )
+
+phyper(overlap-1,list1,PopSize-list1,list2,lower.tail = FALSE, log.p = FALSE)
+
+universe=length(rownames(a))
+
+p_ups<-sapply( 1:length(gsets) , function(x) { phyper( (n_ups[[x]]-1) , l_ups , universe-geneset_sizes[[x]], geneset_sizes[[x]], lower.tail = FALSE , log.p=FALSE) } ) 
+
+p_dns<-sapply( 1:length(gsets) , function(x) { phyper( (n_dns[[x]]-1) , l_dns , universe-geneset_sizes[[x]], geneset_sizes[[x]], lower.tail = FALSE , log.p=FALSE) } ) 
+
+sets_ups<-names(gsets[which(p.adjust(p_ups,method="fdr")<0.05)])
+
+sets_dns<-names(gsets[which(p.adjust(p_dns,method="fdr")<0.05)])
+
+}
