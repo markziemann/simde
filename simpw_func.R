@@ -6,27 +6,8 @@ library("DESeq2")
 library("limma")
 library("ABSSeq")
 library("stringi")
+library("mitch")
 
-
-#' gmt_import
-#'
-#' This function imports GMT files into a list of character vectors for mitch analysis. GMT files are a commonly used
-#' format for lists of genes used in pathway enrichment analysis. GMT files can be obtained from Reactome, MSigDB, etc.
-#' @param gmtfile a gmt file.
-#' @return a list of gene sets.
-#' @keywords import genesets
-#' @export
-#' @examples
-#' # Import some gene sets
-#' genesets<-gmt_import("MyGeneSets.gmt")
-
-gmt_import<-function(gmtfile){
-    genesetLines <- strsplit(readLines(gmtfile), "\t")
-    genesets <- lapply(genesetLines, utils::tail, -2)
-    names(genesets) <- sapply(genesetLines, head, 1)
-    attributes(genesets)$originfile<-gmtfile
-    genesets
-}
 
 ########################################
 # simulate some gene expression data
@@ -169,7 +150,12 @@ fit<-glmFit(z, design)
 lrt<-glmLRT(fit)
 de<-as.data.frame(topTags(lrt,n=Inf))
 de$dispersion<-lrt$dispersion
-de
+de<-de[order(de$PValue),]
+x[[6]]<-de[order(de$PValue),]
+sig<-subset(de,FDR<0.05)
+x[[7]]<-sig[which(sig$logFC>0),1]
+x[[8]]<-sig[which(sig$logFC<0),1]
+x 
 }
 
 #################################################
@@ -178,8 +164,8 @@ de
 edger_ql<-function(y) {
 library("limma")
 library("edgeR")
-res=NULL
 label="simulate"
+y<-x[[1]]
 samplesheet<-as.data.frame(colnames(y))
 colnames(samplesheet)="sample"
 samplesheet$trt<-as.numeric(grepl("trt",colnames(y)))
@@ -193,27 +179,21 @@ fit<-glmQLFit(z, design)
 lrt<-glmQLFTest(fit)
 de<-as.data.frame(topTags(lrt,n=Inf))
 de$dispersion<-lrt$dispersion
-de<-merge(de,lrt$fitted.values,by='row.names')
 de<-de[order(de$PValue),]
-rownames(de)=de$Row.names
-de$Row.names=NULL
-#de<-merge(de,z$counts,by='row.names')
-#de<-de[order(de$PValue),]
-#dge2<-subset(dge,FDR<0.05)
-#up_de<-dge2[which(dge2$logFC>0),1]
-#dn_de<-dge2[which(dge2$logFC<0),1]
-#res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-#res
-de
+x[[6]]<-de[order(de$PValue),]
+sig<-subset(de,FDR<0.05)
+x[[7]]<-sig[which(sig$logFC>0),1]
+x[[8]]<-sig[which(sig$logFC<0),1]
+x
 }
 
 #################################################
 # define DESeq2 function
 ##################################################
-deseq2<-function(y) {
+deseq2<-function(x) {
 library("DESeq2")
-res=NULL
 label="simulate"
+y<-x[[1]]
 samplesheet<-as.data.frame(colnames(y))
 colnames(samplesheet)="sample"
 samplesheet$trt<-factor(as.numeric(grepl("trt",colnames(y))))
@@ -222,14 +202,11 @@ res <- DESeq(dds)
 z<- DESeq2::results(res)
 vsd <- vst(dds, blind=FALSE)
 zz<-cbind(z,assay(vsd))
-zz<-as.data.frame(zz[order(zz$padj),])
-#dge2<-subset(zz,padj<0.05)
-#up_de<-rownames(dge2[which(dge2$log2FoldChange>0),])
-#dn_de<-rownames(dge2[which(dge2$log2FoldChange<0),])
-#res <- list("dge" = zz, "up_de" = up_de, "dn_de" = dn_de)
-#res
-#zz$GeneID<-rownames(zz)
-zz
+x[[6]]<-as.data.frame(zz[order(zz$padj),])
+sig<-subset(zz,padj<0.05)
+x[[7]]<-rownames(sig[which(sig$log2FoldChange>0),])
+x[[8]]<-rownames(sig[which(sig$log2FoldChange<0),])
+x
 }
 
 
@@ -239,8 +216,8 @@ zz
 limma<-function(y) {
 library("limma")
 library("edgeR")
-res=NULL
 label="simulate"
+y<-x[[1]]
 samplesheet<-as.data.frame(colnames(y))
 colnames(samplesheet)="sample"
 samplesheet$trt<-as.numeric(grepl("trt",colnames(y)))
@@ -253,13 +230,11 @@ v <- voom(z,design,plot=F)
 fit <- lmFit(v, design)
 fit.de <- eBayes(fit, robust=TRUE)
 dge<-topTable(fit.de,n=Inf)
-dge<-dge[order(dge$adj.P.Val),]
-#dge2<-subset(dge,adj.P.Val<0.05)
-#up_de<-rownames(dge2[which(dge2$logFC>0),])
-#dn_de<-rownames(dge2[which(dge2$logFC<0),])
-#res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-#res
-dge
+x[[6]]<-dge[order(dge$adj.P.Val),]
+sig<-subset(dge,adj.P.Val<0.05)
+x[[7]]<-rownames(sig[which(sig$logFC>0),])
+x[[8]]<-rownames(sig[which(sig$logFC<0),])
+x
 }
 
 
@@ -277,13 +252,11 @@ obj<-ABSDataSet(y, factor(samplesheet$trt))  #default normalisation is qtotal
 obj<-ABSSeq(obj)
 dge<- as.data.frame(cbind(obj$Amean,obj$Bmean,obj$foldChange,obj$pvalue,obj$adj.pvalue))
 colnames(dge)=c("Amean","Bmean","logFC","PValue","FDR")
-dge<-dge[order(dge$PValue),]
-#dge2<-subset(dge,FDR<0.05)
-#up_de<-rownames(dge2[which(dge2$logFC>0),])
-#dn_de<-rownames(dge2[which(dge2$logFC<0),])
-#res <- list("dge" = dge, "up_de" = up_de, "dn_de" = dn_de)
-#res
-dge
+x[[6]]<-dge[order(dge$PValue),]
+sig<-subset(dge,FDR<0.05)
+x[[7]]<-rownames(dge2[which(dge2$logFC>0),])
+x[[8]]<-rownames(dge2[which(dge2$logFC<0),])
+x
 }
 
 ## here is how to run topconfects from an edger analysis
@@ -292,40 +265,37 @@ dge
 #econfects <- edger_confects(fit, coef=2, fdr=0.5)
 # confects_plot(econfects)
 
-##################################
-# aggregate script
-##################################
-agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets) {
-# N_REPS=3 ; SUM_COUNT=10000000 ; VARIANCE=0.3 ; FRAC_DE=0.2 ; FC=1 ; SIMS=2 ; DGE_FUNC="edger" ; gsets=gsets
+#################################################
+# define mitch function
+##################################################
+run_mitch<-function(y,DGE_FUNC,gsets, N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS) {
 library("mitch")
-xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,gsets), simplify=F, mc.cores = detectCores() )
-# xxx<-RepParallel(2,simrna(a,5,10000000,0.2,0.1,1,gsets), simplify=F, mc.cores = detectCores() )
+dge<-sapply(y,"[",6)
+names(dge)<-paste0("x",1:length(dge),sep="")
 
-# groundtruth
-gt_up<-sapply(xxx,"[",4)
-gt_up<-lapply( gt_up , names)
-gt_dn<-sapply(xxx,"[",5)
-gt_dn<-lapply( gt_dn , names)
-
-tbl<-sapply(xxx,"[",1) 
-dge<-mclapply( tbl , DGE_FUNC , mc.cores = detectCores() )
-names(dge)<-paste0(names(dge),1:length(dge),sep="")
 w<-mitch_import(dge, DGE_FUNC )
 res<-mitch_calc(w,gsets,priority="significance")
 padj<-apply( res$manova_result[,grep("^p.x",colnames(res$manova_result))] , 2 , p.adjust, method="BH")
 colnames(padj)<-paste0("adj.",colnames(padj),sep="")
 res$manova_result<-data.frame(res$manova_result,padj)
 
+
 # now to extract the observed changes
-obs_up=list()
-obs_dn=list()
 for (N in 1:length(grep("^p.x",colnames(res$manova_result)))) {
   SCOL=3+N
   NDIMS=length(grep("^p.x",colnames(res$manova_result)))
   FDRCOL=ncol(res$manova_result)-NDIMS+N
-  obs_up[[N]]<-res$manova_result[which(res$manova_result[,SCOL]>0 & res$manova_result[,FDRCOL]<0.05 ),1]
-  obs_dn[[N]]<-res$manova_result[which(res$manova_result[,SCOL]<0 & res$manova_result[,FDRCOL]<0.05 ),1]
+  y[[N]][[9]]<-res$manova_result[which(res$manova_result[,SCOL]>0 & res$manova_result[,FDRCOL]<0.05 ),1]
+  y[[N]][[10]]<-res$manova_result[which(res$manova_result[,SCOL]<0 & res$manova_result[,FDRCOL]<0.05 ),1]
 }
+
+obs_up<-sapply(y,"[",9)
+obs_dn<-sapply(y,"[",10)
+
+gt_up<-sapply(y,"[",4)
+gt_up<-lapply( gt_up , names)
+gt_dn<-sapply(y,"[",5)
+gt_dn<-lapply( gt_dn , names)
 
 true_pos_up<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_up ,  gt_up ))
 true_pos_dn<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_dn ,  gt_dn ))
@@ -337,42 +307,105 @@ false_neg_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_dn ,  o
 true_pos<-mean(true_pos_up+true_pos_dn)
 false_pos<-mean(false_pos_up+false_pos_dn)
 false_neg<-mean(false_neg_up+false_neg_dn)
-nrows<-as.numeric(lapply( sapply(xxx,"[",1 ), nrow))
+nrows<-as.numeric(lapply( sapply(y,"[",1 ), nrow))
 true_neg<-mean(nrows-(true_pos+false_pos+false_neg))
 
 p<-true_pos/(true_pos+false_pos)
 r<-true_pos/(true_pos+false_neg)
 f<-2*p*r/(p+r)
 
-dge_res<-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,true_pos,false_pos,true_neg,false_neg,p,r,f)
-dge_res
+attr(y,'mitch_res') <-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,true_pos,false_pos,true_neg,false_neg,p,r,f)
+y
 }
-#res1<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
 
-run_hypergeometric<-function(x){
 
-ups<-rownames(subset(xx, padj<0.05 & log2FoldChange > 0))
-dns<-rownames(subset(xx, padj<0.05 & log2FoldChange < 0))
+##################################
+# hypergeometric test function (limited to deseq2)
+##################################
+run_hypergeometric<-function(x,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS){
 
-l_ups<-length(ups)
-l_dns<-length(dns)
+dge<-sapply(x,"[",6)
 
-geneset_sizes<-lapply( gsets , function(x) {length(which(x %in% rownames(a)))} )
+ups<-lapply(dge, function(x) { rownames(subset(x, padj<0.05 & log2FoldChange > 0)) } )
+dns<-lapply(dge, function(x) { rownames(subset(x, padj<0.05 & log2FoldChange < 0)) } )
 
-n_ups<- lapply( gsets , function(x) {length(which(x %in% ups ))} )
+l_ups<-sapply(ups,length)
+l_dns<-sapply(dns,length)
+geneset_sizes<-sapply( gsets , length )
 
-n_dns<-lapply( gsets , function(x) {length(which(x %in% dns ))} )
+# calculate number of genes in sets that are up and downregulated
+n_dns=n_ups=p_ups=p_dns=obs_up=obs_dn=NULL
+n_dns=n_ups=p_ups=p_dns=obs_up=obs_dn=list()
 
-phyper(overlap-1,list1,PopSize-list1,list2,lower.tail = FALSE, log.p = FALSE)
+for (d in 1:length(dge)) {
+  universe=length(rownames(dge[[d]]))
+  n_ups[[d]]<-sapply( 1:length(gsets),function(x){length(which(gsets[[x]] %in% ups[[d]] ))} )
+  n_dns[[d]]<-sapply( 1:length(gsets),function(x){length(which(gsets[[x]] %in% dns[[d]] ))} )
 
-universe=length(rownames(a))
+  p_ups[[d]]<-sapply( 1:length(gsets),function(x){phyper((n_ups[[d]][[x]]-1),l_ups[[d]],universe-geneset_sizes[[x]],geneset_sizes[[x]],lower.tail=FALSE,log.p=FALSE)})
+  p_dns[[d]]<-sapply( 1:length(gsets),function(x){phyper((n_dns[[d]][[x]]-1),l_dns[[d]],universe-geneset_sizes[[x]],geneset_sizes[[x]],lower.tail=FALSE,log.p=FALSE)})
 
-p_ups<-sapply( 1:length(gsets) , function(x) { phyper( (n_ups[[x]]-1) , l_ups , universe-geneset_sizes[[x]], geneset_sizes[[x]], lower.tail = FALSE , log.p=FALSE) } ) 
+  x[[d]][[11]]<-names(gsets[which(p.adjust(p_ups[[d]],method="fdr")<0.05)])
+  x[[d]][[12]]<-names(gsets[which(p.adjust(p_dns[[d]],method="fdr")<0.05)])
+}
 
-p_dns<-sapply( 1:length(gsets) , function(x) { phyper( (n_dns[[x]]-1) , l_dns , universe-geneset_sizes[[x]], geneset_sizes[[x]], lower.tail = FALSE , log.p=FALSE) } ) 
+obs_up<-sapply(x,"[",11)
+obs_dn<-sapply(x,"[",12)
 
-sets_ups<-names(gsets[which(p.adjust(p_ups,method="fdr")<0.05)])
+gt_up<-sapply(x,"[",4)
+gt_up<-lapply( gt_up , names)
+gt_dn<-sapply(x,"[",5)
+gt_dn<-lapply( gt_dn , names)
 
-sets_dns<-names(gsets[which(p.adjust(p_dns,method="fdr")<0.05)])
+true_pos_up<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_up ,  gt_up ))
+true_pos_dn<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_dn ,  gt_dn ))
+false_pos_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , obs_up ,  gt_up ))
+false_pos_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , obs_dn , gt_dn ))
+false_neg_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_up ,  obs_up ))
+false_neg_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_dn ,  obs_dn ))
+
+true_pos<-mean(true_pos_up+true_pos_dn)
+false_pos<-mean(false_pos_up+false_pos_dn)
+false_neg<-mean(false_neg_up+false_neg_dn)
+nrows<-as.numeric(lapply( sapply(x,"[",1 ), nrow))
+true_neg<-mean(nrows-(true_pos+false_pos+false_neg))
+
+p<-true_pos/(true_pos+false_pos)
+r<-true_pos/(true_pos+false_neg)
+f<-2*p*r/(p+r)
+
+attr(x,'phyper_res') <-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,true_pos,false_pos,true_neg,false_neg,p,r,f)
+x
 
 }
+
+
+##################################
+# aggregate function
+##################################
+agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets) {
+# N_REPS=3 ; SUM_COUNT=40000000 ; VARIANCE=0.4 ; FRAC_DE=0.5 ; FC=1 ; SIMS=10 ; DGE_FUNC="deseq2" ; gsets=gsets
+library("mitch")
+xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,gsets), simplify=F, mc.cores = detectCores() )
+
+# run deseq2
+xxx<-mclapply(xxx , DGE_FUNC , mc.cores = detectCores() )
+
+# run mitch
+xxx<-run_mitch(xxx,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
+
+# run phyper
+xxx<-run_hypergeometric(xxx,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
+
+# return the result
+g=list()
+for (f in 1:length(attributes(xxx))) {
+ PWAY_FUNC<-names(attributes(xxx)[f])
+ PWAY_FUNC<-as.data.frame(PWAY_FUNC)
+ g[[f]]<-cbind(unname(attributes(xxx)[f]),PWAY_FUNC)
+}
+
+g
+}
+# x<-agg_dge(a,10,40000000,0.4,0.2,1,10,"deseq2",gsets) 
+

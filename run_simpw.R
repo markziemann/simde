@@ -39,11 +39,11 @@ names(gsets)<-stri_rand_strings(length(gsets), 15, pattern = "[A-Za-z]")
 # 10M reads with edger classic
 ###############################################
 SIMS=10
-
-for ( FRAC_DE in c(0.05,0.1,0.5)) {
+unlink("simpw_res_running.tsv")
+for ( FRAC_DE in c(0.5)) {
   PDFNAME=paste(FRAC_DE,"_pw.pdf",sep="")
   pdf(file=PDFNAME,width=11.7,height=6.9)
-  for (FC in c(0.584,1,1.584,2)) {
+  for (FC in c(0.585,1)) {
     par(mfrow=c(3,3))
     for (N_REPS in c(3,5,10)) {
       res=NULL
@@ -51,8 +51,9 @@ for ( FRAC_DE in c(0.05,0.1,0.5)) {
 #      for (DGE_FUNC in c("edger","edger_ql","deseq","limma","absseq")) {
         for ( SUM_COUNT in c(10000000,40000000,100000000)) {
           for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
-            res_new<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets)
-            res=rbind(res,res_new)
+            x<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets)
+            write.table(x,file="simpw_res_running.tsv",quote=F,sep='\t',append=T)
+            res=rbind(res,x)
           }
         }
         res1<-res[which(res$DGE_FUNC==DGE_FUNC),]
@@ -81,27 +82,27 @@ for ( FRAC_DE in c(0.05,0.1,0.5)) {
         res1_1e8_v5<-res1_1e8[which(res1_1e8$VARIANCE==0.5),]
 
         par(mar=c(4,4,3,2))
-        plot(res1_1e7_v0$r,res1_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e7_v2$r,res1_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e7_v3$r,res1_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e7_v4$r,res1_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e7_v5$r,res1_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0,1))
+        plot(res1_1e7_v0$r,res1_1e7_v0$p,xlab="recall",ylab="precision",pch=15,col="red",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e7_v2$r,res1_1e7_v2$p,xlab="recall",ylab="precision",pch=16,col="red",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e7_v3$r,res1_1e7_v3$p,xlab="recall",ylab="precision",pch=17,col="red",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e7_v4$r,res1_1e7_v4$p,xlab="recall",ylab="precision",pch=0,col="red",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e7_v5$r,res1_1e7_v5$p,xlab="recall",ylab="precision",pch=1,col="red",xlim=c(0,1),ylim=c(0.95,1))
 
-        points(res1_4e7_v0$r,res1_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0,1))
-        points(res1_4e7_v2$r,res1_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0,1))
-        points(res1_4e7_v3$r,res1_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0,1))
-        points(res1_4e7_v4$r,res1_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0,1))
-        points(res1_4e7_v5$r,res1_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0,1))
+        points(res1_4e7_v0$r,res1_4e7_v0$p,xlab="recall",ylab="precision",pch=15,col="blue",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_4e7_v2$r,res1_4e7_v2$p,xlab="recall",ylab="precision",pch=16,col="blue",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_4e7_v3$r,res1_4e7_v3$p,xlab="recall",ylab="precision",pch=17,col="blue",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_4e7_v4$r,res1_4e7_v4$p,xlab="recall",ylab="precision",pch=0,col="blue",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_4e7_v5$r,res1_4e7_v5$p,xlab="recall",ylab="precision",pch=1,col="blue",xlim=c(0,1),ylim=c(0.95,1))
 
-        points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="dark gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="dark gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="dark gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="dark gray",xlim=c(0,1),ylim=c(0,1))
-        points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="dark gray",xlim=c(0,1),ylim=c(0,1))
+        points(res1_1e8_v0$r,res1_1e8_v0$p,xlab="recall",ylab="precision",pch=15,col="dark gray",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e8_v2$r,res1_1e8_v2$p,xlab="recall",ylab="precision",pch=16,col="dark gray",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e8_v3$r,res1_1e8_v3$p,xlab="recall",ylab="precision",pch=17,col="dark gray",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e8_v4$r,res1_1e8_v4$p,xlab="recall",ylab="precision",pch=0,col="dark gray",xlim=c(0,1),ylim=c(0.95,1))
+        points(res1_1e8_v5$r,res1_1e8_v5$p,xlab="recall",ylab="precision",pch=1,col="dark gray",xlim=c(0,1),ylim=c(0.95,1))
 
-        legend(0.4,0.3,legend=c("10M","40M","100M"),col=c("red", "blue","dark gray") ,pch=19,cex=0.6,title="read depth")
-        legend(0.75,0.3,legend=c("0","0.2","0.3","0.4","0.5"),col=c("dark gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
-        mtext(paste(DGE_FUNC,N_REPS,"reps, 10% DEG") ,cex=0.8); grid()
+#        legend(0.4,0.3,legend=c("10M","40M","100M"),col=c("red", "blue","dark gray") ,pch=19,cex=0.6,title="read depth")
+#        legend(0.75,0.4,legend=c("0","0.2","0.3","0.4","0.5"),col=c("dark gray") ,pch=c(15:17,0,1),cex=0.6,title="added variance")
+        mtext(paste(DGE_FUNC,N_REPS,"reps") ,cex=0.8); grid()
 
       }
     }
