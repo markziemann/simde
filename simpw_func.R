@@ -7,7 +7,7 @@ library("limma")
 library("ABSSeq")
 library("stringi")
 library("mitch")
-
+library("fgsea")
 
 ########################################
 # simulate some gene expression data
@@ -318,7 +318,6 @@ attr(y,'mitch_res') <-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_F
 y
 }
 
-
 ##################################
 # hypergeometric test function (limited to deseq2)
 ##################################
@@ -342,8 +341,8 @@ for (d in 1:length(dge)) {
   n_ups[[d]]<-sapply( 1:length(gsets),function(x){length(which(gsets[[x]] %in% ups[[d]] ))} )
   n_dns[[d]]<-sapply( 1:length(gsets),function(x){length(which(gsets[[x]] %in% dns[[d]] ))} )
 
-  p_ups[[d]]<-sapply( 1:length(gsets),function(x){phyper((n_ups[[d]][[x]]-1),l_ups[[d]],universe-geneset_sizes[[x]],geneset_sizes[[x]],lower.tail=FALSE,log.p=FALSE)})
-  p_dns[[d]]<-sapply( 1:length(gsets),function(x){phyper((n_dns[[d]][[x]]-1),l_dns[[d]],universe-geneset_sizes[[x]],geneset_sizes[[x]],lower.tail=FALSE,log.p=FALSE)})
+  p_ups[[d]]<-sapply( 1:length(gsets),function(x){phyper((n_ups[[d]][[x]]-1),l_ups[[d]],universe-geneset_$
+  p_dns[[d]]<-sapply( 1:length(gsets),function(x){phyper((n_dns[[d]][[x]]-1),l_dns[[d]],universe-geneset_$
 
   x[[d]][[11]]<-names(gsets[which(p.adjust(p_ups[[d]],method="fdr")<0.05)])
   x[[d]][[12]]<-names(gsets[which(p.adjust(p_dns[[d]],method="fdr")<0.05)])
@@ -374,7 +373,51 @@ p<-true_pos/(true_pos+false_pos)
 r<-true_pos/(true_pos+false_neg)
 f<-2*p*r/(p+r)
 
-attr(x,'phyper_res') <-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,true_pos,false_pos,true_neg,false_neg,p,r,f)
+attr(x,'phyper_res') <-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,true_pos,false_pos,t$
+x
+
+}
+
+##################################
+# FGSEA function
+##################################
+run_fgsea<-function(x,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS){
+
+dge<-sapply(x,"[",6)
+
+xx<-lapply( dge , function(x) { 
+ s<-x[,4] 
+ names(s)<-rownames(x)
+ p<-as.data.frame(fgsea(pathways=gsets, stats=s, nperm=1000))
+ 
+} )
+
+obs_up<-lapply(xx, function(x) { subset(x,padj<0.05 & ES>0)[,1] } )
+obs_dn<-lapply(xx, function(x) { subset(x,padj<0.05 & ES<0)[,1] } )
+
+gt_up<-sapply(x,"[",4)
+gt_up<-lapply( gt_up , names)
+gt_dn<-sapply(x,"[",5)
+gt_dn<-lapply( gt_dn , names)
+
+true_pos_up<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_up ,  gt_up ))
+true_pos_dn<-as.numeric(mapply( function(x,y) length(intersect(x,y)) , obs_dn ,  gt_dn ))
+false_pos_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , obs_up ,  gt_up ))
+false_pos_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , obs_dn , gt_dn ))
+false_neg_up<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_up ,  obs_up ))
+false_neg_dn<-as.numeric(mapply( function(x,y) length(setdiff(x,y)) , gt_dn ,  obs_dn ))
+
+true_pos<-mean(true_pos_up+true_pos_dn)
+false_pos<-mean(false_pos_up+false_pos_dn)
+false_neg<-mean(false_neg_up+false_neg_dn)
+nrows<-as.numeric(lapply( sapply(x,"[",1 ), nrow))
+true_neg<-mean(nrows-(true_pos+false_pos+false_neg))
+
+p<-true_pos/(true_pos+false_pos)
+r<-true_pos/(true_pos+false_neg)
+f<-2*p*r/(p+r)
+
+attr(x,'fgsea_res') <-data.frame(N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,true_pos,false_pos,true_neg,false_neg,p,r,f)
 x
 
 }
@@ -396,6 +439,9 @@ xxx<-run_mitch(xxx,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
 
 # run phyper
 xxx<-run_hypergeometric(xxx,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
+
+# run phyper
+xxx<-run_fgsea(xxx,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS)
 
 # return the result
 g=list()
