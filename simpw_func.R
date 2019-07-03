@@ -386,7 +386,7 @@ run_fgsea<-function(x,DGE_FUNC,gsets,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS){
 dge<-sapply(x,"[",6)
 
 xx<-lapply( dge , function(x) { 
- s<-x[,4] 
+ s<-s<-sign(x$log2FoldChange)*-log10(x$pvalue)
  names(s)<-rownames(x)
  p<-as.data.frame(fgsea(pathways=gsets, stats=s, nperm=1000))
  
