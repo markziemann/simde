@@ -388,6 +388,7 @@ dge<-sapply(x,"[",6)
 xx<-lapply( dge , function(x) { 
  s<-sign(x$log2FoldChange)*-log10(x$pvalue)
  s[is.na(s)] <- 1
+ s[!is.finite(s)] <- 1
  names(s)<-rownames(x)
  p<-as.data.frame(fgsea(pathways=gsets, stats=s, nperm=1000))
 } )
@@ -448,6 +449,7 @@ mygst=list()
 for (d in 1:length(dge)) {
   s<-sign(dge[[d]]$log2FoldChange)*-log10(dge[[d]]$pvalue)
   s[is.na(s)] <- 1
+  s[!is.finite(s)] <- 1
   mygst[[d]]<-mclapply(gsets, gst_func , gene_names=rownames(dge[[d]]) , stats=s, mc.cores=8)
   mygst[[d]]<-t(as.data.frame(mygst[[d]]))
   colnames(mygst[[d]])<-c("padj","es")
@@ -491,7 +493,7 @@ x
 # aggregate function
 ##################################
 agg_dge<-function(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets) {
-# N_REPS=3 ; SUM_COUNT=40000000 ; VARIANCE=0.4 ; FRAC_DE=0.5 ; FC=1 ; SIMS=10 ; DGE_FUNC="deseq2" ; gsets=gsets
+# N_REPS=3 ; SUM_COUNT=40000000 ; VARIANCE=0 ; FRAC_DE=0.2 ; FC=1 ; SIMS=10 ; DGE_FUNC="deseq2" ; gsets=gsets
 library("mitch")
 xxx<-RepParallel(SIMS,simrna(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,gsets), simplify=F, mc.cores = detectCores() )
 
