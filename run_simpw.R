@@ -51,13 +51,12 @@ for ( FRAC_DE in c(0.2)) {
         for ( SUM_COUNT in c(10000000,40000000,100000000)) {
           for  ( VARIANCE in c(0,0.2,0.3,0.4,0.5)) {
             x<-agg_dge(a,N_REPS,SUM_COUNT,VARIANCE,FRAC_DE,FC,SIMS,DGE_FUNC,gsets)
+            x<-as.data.frame(do.call(rbind, x))
             write.table(x,file="simpw_res_running.tsv",quote=F,sep='\t',append=T)
-            res=rbind(res,x)
+            res=c(res,x)
           }
         }
-
       }
     }
   }
 }
-
